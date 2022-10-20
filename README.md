@@ -1,6 +1,4 @@
-# AppEKG: A Heartbeat Framework
-
-__NOTE:__ _AppEKG is currently being developed in a private GitLab project...the initial public version will be coming before Nov 2022! Current imports do not yet have updated analysis tools and their documentation._
+# AppEKG
 
 AppEKG is a heartbeat instrumentation library and analysis framework,
 enabling the tracking and analysis of application performance at the
@@ -48,6 +46,13 @@ heartbeat is capturing.
 Environment Variables:  
 - APPEKG_SAMPLING_INTERVAL : integer, number of seconds between samples; 
                              will override AppEKG initialization parameter
+- APPEKG_OUTPUT_PATH : string to prepend to output file names; '/' is added 
+                       at end and does not need to be included. If string
+                       contains one %d, the application ID is inserted at
+                       that spot; if it contains two %d's, the job ID is
+                       inserted for the second one. Other % options will 
+                       cause the string to be used as is, without 
+                       substitutions.
 - PBS_JOBID : if found, used for the 'jobid' data field, if param jobid=0
 - SLURM_JOB_ID : if found, used for the 'jobid' data field, if param jobid=0
 
@@ -57,9 +62,10 @@ _make_ should work in the main directory; _make doc_ will create doxygen
 documentation. If you need to select optional output modes such as LDMS
 streams, edit the Makefile to set it up properly.
 
-In the _test_ directory, 'make' will build a variety of tests. The test 
+In the _test_ directory, _make_ will build a variety of tests. The test 
 _evensum_ is the most complete, using OpenMP threads to generate heartbeats
-per thread.
+per thread. Run as 'OMP_NUM_THREADS=2 ./evensum' to ,e.g., set the number 
+of threads to 2.
 
 ## Running an application
 

@@ -47,6 +47,13 @@
 * Environment Variables:
 * APPEKG_SAMPLING_INTERVAL : integer, number of seconds between samples; will
 *                            override AppEKG initialization parameter
+* APPEKG_OUTPUT_PATH : string to prepend to output file names; '/' is added 
+*                      at end and does not need to be included. If string
+*                      contains one %d, the application ID is inserted at
+*                      that spot; if it contains two %d's, the job ID is
+*                      inserted for the second one. Other % options will 
+*                      cause the string to be used as is, without 
+*                      substitutions.
 * PBS_JOBID : if found, used for the 'jobid' data field, if param jobid=0
 * SLURM_JOB_ID : if found, used for the 'jobid' data field, if param jobid=0
 **/

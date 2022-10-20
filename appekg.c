@@ -5,8 +5,7 @@
 * This current implementation supports two modes: storing data into 
 * CSV files or using LDMS Streams to collect data.
 *
-* TODO: Environment variables
-* APPEKG_SAMPLING_INTERVAL : integer, number of seconds between samples
+* Environment variables -- see appekg.h header comment
 *  
 * Threading: basic idea: hash thread ID into a small range, use this
 * as index into array of thread heartbeat data. If hash collides, ignore
@@ -22,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/utsname.h>
+#include <sys/stat.h>
 
 #define EKG_EXTERN
 #include "appekg.h"
@@ -104,6 +104,7 @@ static void* performSampling(void *arg);
 static int allowStderr = 0;
 static pthread_mutex_t hblock;
 static struct timespec programStartTime;
+static unsigned int applicationID, jobID;
 
 /**
  * \brief Initialize AppEKG
@@ -131,8 +132,8 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
       pthread_mutex_unlock(&hblock);
       return 0; // other thread already did the init?
    }
-   appekgStatus = APPEKG_STAT_OK;
    allowStderr = ! silent;
+   applicationID = appid;
 
    clock_gettime( CLOCK_REALTIME, &programStartTime);
    
@@ -175,6 +176,7 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
    }
    if (jid > 0) 
       jobid = jid;
+   jobID = jobid;
 
    // set up component id from hostname, if hostname has a number in it
    int cid = 0;
@@ -227,6 +229,7 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
       threadMetrics[0][metricCount].v.dpval = 0.0;
       threadMetrics[0][metricCount++].type = DOUBLE;
    }
+   appekgStatus = APPEKG_STAT_OK;
    // start up sampling thread 
    doSampling = 1;
    pthread_mutex_unlock(&hblock);
@@ -252,9 +255,9 @@ void ekgFinalize(void)
       return;
    }
    doSampling = 0;
-   appekgStatus = APPEKG_STAT_DISABLED;
    pthread_mutex_unlock(&hblock);
    finalizeHeartbeatData((void*) 0);
+   appekgStatus = APPEKG_STAT_DISABLED;
    if (_ekgHBEndFlag) {
       free(_ekgHBEndFlag);
       _ekgHBEndFlag = 0;
@@ -295,26 +298,28 @@ void ekgEnable(void)
 */
 void ekgBeginHeartbeat(unsigned int hbId)
 {
-    if (hbId <= 0 || hbId > numHeartbeats)
-       return;
-    unsigned int thId = THREAD_ID;
-    unsigned int realId = THREAD_ID_FULL;
-    if (_ekgActualThreadID[thId] == 0)
-       _ekgActualThreadID[thId] = realId;
-    else if (_ekgActualThreadID[thId] != realId)
-       return; // collision and we didn't win, so leave
-    struct timespec start;
-    if (clock_gettime( CLOCK_REALTIME, &start) == -1)
-    {
-        if (allowStderr) perror("AppEKG: clock gettime error");
-        return;
-    }
-    // subtract off program start time seconds (skip nanosec)
-    start.tv_sec -= programStartTime.tv_sec;
-    // changed to be microseconds; nanoseconds might overflow an int
-    // TODO: still think about this, maybe microseconds will overflow, too
-    beginHBTime[thId][hbId] = ((1000 * start.tv_sec) + (start.tv_nsec/1000000));
-    return;
+   if (hbId <= 0 || hbId > numHeartbeats)
+      return;
+   if (appekgStatus != APPEKG_STAT_OK)
+      return;
+   unsigned int thId = THREAD_ID;
+   unsigned int realId = THREAD_ID_FULL;
+   if (_ekgActualThreadID[thId] == 0)
+      _ekgActualThreadID[thId] = realId;
+   else if (_ekgActualThreadID[thId] != realId)
+      return; // collision and we didn't win, so leave
+   struct timespec start;
+   if (clock_gettime( CLOCK_REALTIME, &start) == -1)
+   {
+      if (allowStderr) perror("AppEKG: clock gettime error");
+      return;
+   }
+   // subtract off program start time seconds (skip nanosec)
+   start.tv_sec -= programStartTime.tv_sec;
+   // changed to be microseconds; nanoseconds might overflow an int
+   // TODO: still think about this, maybe microseconds will overflow, too
+   beginHBTime[thId][hbId] = ((1000 * start.tv_sec) + (start.tv_nsec/1000000));
+   return;
 }
 
 /**
@@ -331,6 +336,8 @@ void ekgEndHeartbeat(unsigned int hbId)
 {
    double duration, avg;
    if (hbId <= 0 || hbId > numHeartbeats)
+      return;
+   if (appekgStatus != APPEKG_STAT_OK)
       return;
    struct timespec endTime;
    unsigned int thId = THREAD_ID;
@@ -437,6 +444,8 @@ static void outputLDMSStreamsData()
 {
    char str[MAX_JSON_STRLEN]; // DANGEROUS! Use snprintf!
    int j = 0;
+   if (appekgStatus != APPEKG_STAT_OK)
+      return;
    j += sprintf(&str[j], "%s", "{");
    for (i=0; i < metricCount; i++) {
       if (i>0) j += sprintf(&str[j],", ");
@@ -595,11 +604,55 @@ static char* metadataToJSON()
 static void writeCSVHeaders()
 {
    int i;
-   char csvFilename[64];
+   char *s;
+   char fullFilename[1024], pathFormat[1024];
    FILE* mf;
-   /* name each rank's data file with PID */
-   sprintf(csvFilename,"%s-%d.csv",FILENAME_PREFIX,getpid());
-   csvFH = fopen(csvFilename,"w");
+   if (appekgStatus != APPEKG_STAT_OK)
+      return;
+   // build output data path
+   strcpy(fullFilename, ".");
+   s = getenv("APPEKG_OUTPUT_PATH");
+   if (s) {
+      strncpy(pathFormat, s, sizeof(pathFormat));
+      pathFormat[sizeof(pathFormat)-1] = '\0';
+      // convert any %s formats into ss, for security
+      s = pathFormat;
+      while ((s = strstr(s,"%s")) != NULL) {
+         *(s+1) = 'd';
+         s++;
+      }
+      // count # of %s in format; use it if two or less
+      s = pathFormat;
+      i = 0;
+      while ((s = index(s,'%')) != NULL) {
+         i++; s++;
+      }
+      if (i <= 2) 
+         snprintf(fullFilename, sizeof(fullFilename), pathFormat, 
+                  applicationID, jobID);
+      else
+         strcpy(fullFilename, pathFormat);
+   }
+   // copy path prefix back to pathFormat to use twice
+   strcpy(pathFormat, fullFilename);
+   // try mkdir just in case; this could create the "jobID" directory
+   // if it is last and the format specified it
+   mkdir(pathFormat, 0770);
+   // name each rank's data file with PID 
+   sprintf(fullFilename, "%s/%s-%d.csv", pathFormat, FILENAME_PREFIX, getpid());
+   csvFH = fopen(fullFilename,"w");
+   if (!csvFH) {
+      // try to put data files in current directory
+      strcpy(pathFormat,".");
+      sprintf(fullFilename, "%s/%s-%d.csv", pathFormat, FILENAME_PREFIX, getpid());
+      csvFH = fopen(fullFilename,"w");
+   }
+   if (!csvFH) {
+      if (allowStderr) 
+         fprintf(stderr,"AppEKG: cannot open data file...disabling");
+      appekgStatus = APPEKG_STAT_DISABLED;
+      return;
+   }
    // write out column headers (CHANGED: only output first one (time)
    // when we finalize this, we can remove the loop
    for (i=0; i < baseCount; i++) {
@@ -618,8 +671,8 @@ static void writeCSVHeaders()
          fprintf(csvFH,"%s",threadMetrics[0][i].name);
    }
    fprintf(csvFH,"\n");
-   sprintf(csvFilename,"%s-%d.json",FILENAME_PREFIX,getpid());
-   mf = fopen(csvFilename,"w");
+   sprintf(fullFilename, "%s/%s-%d.json", pathFormat, FILENAME_PREFIX, getpid());
+   mf = fopen(fullFilename,"w");
    fputs(metadataToJSON(),mf);
    fclose(mf);
 }
@@ -639,11 +692,18 @@ static void outputCSVData()
    int i, tstrlen=0; //, allzeros;
    unsigned int tid;
    char tdatastr[MAX_CSV_STRLEN];
+   if (appekgStatus != APPEKG_STAT_OK)
+      return;
    //fprintf(csvFH,"CSV Output\n");
    pthread_mutex_lock(&hblock);
    // if output hasn't started yet, write header data
    if (csvFH == 0)
       writeCSVHeaders();
+   // write headers opens the files; if unsuccessful, exit
+   if (appekgStatus != APPEKG_STAT_OK) {
+      pthread_mutex_unlock(&hblock);
+      return;
+   }
    for (tid=0; tid < EKG_MAX_THREADS; tid++) {
       //fprintf(csvFH,"Thread %d\n",tid);
       // new: if no thread is registered in this slot, continue,
@@ -768,6 +828,8 @@ static void outputCSVData()
 static void outputHeartbeatData()
 {
    struct timeval curtime;
+   if (appekgStatus != APPEKG_STAT_OK)
+      return;
    // set current sample's timestamp
    gettimeofday(&curtime,0);
    curtime.tv_sec -= programStartTime.tv_sec;
@@ -790,6 +852,8 @@ static void outputHeartbeatData()
 **/
 static void finalizeHeartbeatData(void *arg)
 {
+   if (appekgStatus != APPEKG_STAT_OK)
+      return;
    outputHeartbeatData();
    if (ekgOutputMode == DO_CSV_FILES) {
       fclose(csvFH);
