@@ -1,3 +1,8 @@
+#
+# DO NOT USE
+# NOTE: this is an old script that processed per-process data. 
+#
+
 # Script to get stats per rank(cvs) file
 # module load python/351
 # python stats.py <path> <#HB>

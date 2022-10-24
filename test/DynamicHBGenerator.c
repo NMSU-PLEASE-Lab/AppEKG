@@ -17,10 +17,7 @@ The following values can be given as input:
 #include <time.h>
 #include <errno.h>
 
-#if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-#define LDMSDEF
-#include </Users/sudippodder/Documents/RA_Works/appheartbeats/ldmsa.h>
-#endif
+#include "appekg.h"
 
 void logHeartbeats(int heartbeatID, int numberOfHBForEachCycle, int durationOfEachHB, int intervalBetweenHBs);
 int msleep(long tms);
@@ -37,12 +34,10 @@ int main(int argc, char *argv[]) {
     }
 
     // initializing AppEKG library
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        int ldms_stat;
-        ldms_stat = appekg_initialize(1,0,0,0,0);
-        if (ldms_stat == -1)
-            fprintf(stderr,"LDMS error initializing: %d\n",ldms_stat);
-    #endif
+    EKG_INITIALIZE(3, 1, 101, 42, 13, 1);
+    //EKG_NAME_HEARTBEAT(1,"hb1");
+    //EKG_NAME_HEARTBEAT(2,"hb2");
+    //EKG_NAME_HEARTBEAT(3,"hb3");
 
     // capture data in integer form from command line input
     int numberOfHB = atoi(argv[1]);
@@ -76,9 +71,7 @@ int main(int argc, char *argv[]) {
     }
 
     // finalizing/closing AppEKG library
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        appekg_finalize();
-    #endif
+    EKG_FINALIZE();
 
     return 0;
 }
@@ -87,17 +80,13 @@ void logHeartbeats(int heartbeatID, int numberOfHBForEachCycle, int durationOfEa
     
     for(int k=0;k<numberOfHBForEachCycle;k++){
         // start HB tracking
-        #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-            appekg_begin_heartbeat(heartbeatID);
-        #endif
+        EKG_BEGIN_HEARTBEAT(heartbeatID, 1);
         
         usleep(TO_MILLISECOND_FACTOR * durationOfEachHB);
         //msleep(durationOfEachHB);
 
         // end HB tracking
-        #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-            appekg_end_heartbeat(heartbeatID);
-        #endif
+        EKG_END_HEARTBEAT(heartbeatID);
 
     }
 

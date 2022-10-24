@@ -2,13 +2,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include<time.h>
-
 #include <pthread.h>
 
-#if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-#define LDMSDEF
-#include </Users/sudippodder/Documents/RA_Works/appheartbeats/ldmsa.h>
-#endif
+#include "appekg.h"
 
 int binarySearch(int arr[], int l, int r, int x);
 int linearSearch(int arr[], int n, int x);
@@ -20,12 +16,7 @@ void *linearSearchRecursiveThread(void *searchValue);
 
 int main(void) {
     // initializing AppEKG library
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        int ldms_stat;
-        ldms_stat = appekg_initialize(1,0,0,0,0);
-        if (ldms_stat == -1)
-            fprintf(stderr,"LDMS error initializing: %d\n",ldms_stat);
-    #endif
+    EKG_INITIALIZE(1, 1, 101, 42, 13, 1);
 
     // finding random x value for search operation
     srand(time(0));
@@ -59,9 +50,7 @@ int main(void) {
     }
 
     // finalizing/closing AppEKG library
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        appekg_finalize();
-    #endif
+    EKG_FINALIZE();
 
     return 0;
 }
@@ -92,9 +81,7 @@ void *binarySearchThread(void *searchValue){
 
 int binarySearch(int arr[], int l, int r, int x) {
     // start HB tracking
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        appekg_begin_heartbeat(1);
-    #endif
+    EKG_BEGIN_HEARTBEAT(1, 1);
 
     if (r >= l) {
         int mid = l + (r - l) / 2;
@@ -102,9 +89,7 @@ int binarySearch(int arr[], int l, int r, int x) {
         // if the element is present at the middle itself
         if (arr[mid] == x){
             // end HB tracking
-            #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-                appekg_end_heartbeat(1);
-            #endif
+            EKG_END_HEARTBEAT(1);
 
             return mid;
         }
@@ -112,25 +97,18 @@ int binarySearch(int arr[], int l, int r, int x) {
         // if element is smaller than mid, then it can only be present in left subarray
         if (arr[mid] > x){
             // end HB tracking
-            #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-                appekg_end_heartbeat(1);
-            #endif
+            EKG_END_HEARTBEAT(1);
 
             return binarySearch(arr, l, mid - 1, x);
         }
             
         // end HB tracking
-        #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-            appekg_end_heartbeat(1);
-        #endif
+        EKG_END_HEARTBEAT(1);
         // else the element can only be present in right subarray
         return binarySearch(arr, mid + 1, r, x);
     }
     
-    // End HB tracking
-        #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-            appekg_end_heartbeat(1);
-        #endif
+    EKG_END_HEARTBEAT(1);
 
     // We reach here when element is not present in array
     return -1;
@@ -164,21 +142,15 @@ int linearSearch(int arr[], int n, int x){
 
     for(int i=0;i<n;i++){
         // start HB tracking
-        #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-            appekg_begin_heartbeat(2);
-        #endif
+        EKG_BEGIN_HEARTBEAT(2, 1);
         if(arr[i]==x){
             // end HB tracking
-            #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-                appekg_end_heartbeat(2);
-            #endif
+            EKG_END_HEARTBEAT(2);
             return i;
         }
 
         // end HB tracking
-        #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-            appekg_end_heartbeat(2);
-        #endif
+        EKG_END_HEARTBEAT(2);
     }
 
     return -1;
@@ -212,9 +184,7 @@ void *linearSearchRecursiveThread(void *searchValue){
 int linearSearchRecursive(int arr[], int size, int x) {
 
     // start HB tracking
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        appekg_begin_heartbeat(3);
-    #endif
+    EKG_BEGIN_HEARTBEAT(3, 1);
 
     int recursive;
   
@@ -223,9 +193,7 @@ int linearSearchRecursive(int arr[], int size, int x) {
     if (size >= 0) {
         if (arr[size] == x){
             // end HB tracking
-            #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-                appekg_end_heartbeat(3);
-            #endif
+            EKG_END_HEARTBEAT(3);
             return size;
         }
         else {
@@ -238,16 +206,12 @@ int linearSearchRecursive(int arr[], int size, int x) {
     }
     else {
         // end HB tracking
-        #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-            appekg_end_heartbeat(3);
-        #endif
+        EKG_END_HEARTBEAT(3);
         return -1;
     }
 
     // end HB tracking
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        appekg_end_heartbeat(3);
-    #endif
+    EKG_END_HEARTBEAT(3);
   
     return recursive;
 }

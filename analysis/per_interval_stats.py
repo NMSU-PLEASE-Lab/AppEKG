@@ -1,3 +1,8 @@
+#
+# DO NOT USE
+# NOTE: this is an old script that processed per-process data. 
+#
+
 # Script to get stats per interval
 # module load python/351
 # python per_interval_stats.py <path> <#HB> > <output_path>

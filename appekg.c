@@ -318,7 +318,7 @@ void ekgBeginHeartbeat(unsigned int hbId)
    start.tv_sec -= programStartTime.tv_sec;
    // changed to be microseconds; nanoseconds might overflow an int
    // TODO: still think about this, maybe microseconds will overflow, too
-   beginHBTime[thId][hbId] = ((1000 * start.tv_sec) + (start.tv_nsec/1000000));
+   beginHBTime[thId][hbId] = ((1000000 * start.tv_sec) + (start.tv_nsec/1000));
    return;
 }
 
@@ -351,8 +351,8 @@ void ekgEndHeartbeat(unsigned int hbId)
    // subtract off program start time seconds (skip nanosec)
    endTime.tv_sec -= programStartTime.tv_sec;
    // convert secs to microsecond, see comment in beginHB 
-   unsigned long endHBTime = ((1000 * endTime.tv_sec) + 
-                              (endTime.tv_nsec/1000000));
+   unsigned long endHBTime = ((1000000 * endTime.tv_sec) + 
+                              (endTime.tv_nsec/1000));
    // calculate duration 
    duration = (endHBTime - beginHBTime[thId][hbId]); 
    // lock count and duration update from other threads

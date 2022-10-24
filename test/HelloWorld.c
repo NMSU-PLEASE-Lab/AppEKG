@@ -1,21 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-#define LDMSDEF
-#include </Users/sudippodder/Documents/RA_Works/appheartbeats/ldmsa.h>
-#endif
+#include "appekg.h"
 
 void printHelloWorld();
 
 int main(void) {
     // initializing AppEKG library
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        int ldms_stat;
-        ldms_stat = appekgapp_initialize(1,0,0,0,0);
-        if (ldms_stat == -1)
-            fprintf(stderr,"LDMS error initializing: %d\n",ldms_stat);
-    #endif
+    EKG_INITIALIZE(1, 1, 101, 42, 13, 1);
 
     // printing Hello World
     printHelloWorld();
@@ -28,24 +20,18 @@ int main(void) {
     */
 
     // finalizing/closing AppEKG library
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        appekgapp_finalize();
-    #endif
+    EKG_FINALIZE();
 
     return 0;
 }
 
 void printHelloWorld(){
     // start HB tracking
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        appekg_begin_heartbeat(1);
-    #endif
+    EKG_BEGIN_HEARTBEAT(1, 1);
 
     printf ("Hello from your first program!\n");
 
     // end HB tracking
-    #if defined LDMSAPPINFOINCPROF || defined LDMSAPPINFO
-        appekg_end_heartbeat(1);
-    #endif
+    EKG_END_HEARTBEAT(1);
 }
 
