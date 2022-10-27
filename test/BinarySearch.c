@@ -9,7 +9,8 @@ int binarySearch(int arr[], int l, int r, int x);
 
 int main(void) {
    // initializing AppEKG library
-   EKG_INITIALIZE(1, 1, 101, 42, 13, 1);
+   EKG_INITIALIZE(1, 1, 102, 52, 12, 1);
+   EKG_NAME_HEARTBEAT(1,"Bin");
 
    // declaring array size values
    int n = 32767;

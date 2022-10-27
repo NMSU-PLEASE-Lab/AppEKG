@@ -1,12 +1,15 @@
-# Script to get stats per thread from appekg.csv file
 #
-# To run this script, please use python 3
-# python stats_thread.py <path_to_appekg.csv_files> > <output_path>
+# stats_thread.py
+#
+# This script prints out statistics per threadID in csv format. These statistics consist of min, max, std, mean, median, range, Q1, Q2, Q3, skew, kurtosis, count.
+# To run the script, please use python3 and run 'python3 stats_thread.py --help' for more instruction on how to run it.
+# 
 
 import pandas as pd
 import sys
 from os import listdir
 import numpy as np
+import argparse 
 
 # Find files by extension
 def list_files(dir_path, ext):
@@ -47,7 +50,7 @@ def getHBs(df):
 
 # Print statistics for each thread
 def print_stats(df):
-        print ("{:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10} {:<10}".format('threadID','field','min','max','std','mean','median','range','Q1','Q2','Q3','skew','kurtosis','count'))
+        print ("{:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}, {:}".format('threadID','field','min','max','std','mean','median','range','Q1','Q2','Q3','skew','kurtosis','count'))
         threadsIDs = getThreadsID(df)
         for t  in threadsIDs:
             _df = df[df["threadID"] == t].copy()
@@ -67,10 +70,17 @@ def print_stats(df):
                 _quantile3 = _df[f].quantile(q=0.75)
                 _skew = fun_skewness(_df[f].tolist())
                 _kurtosis = fun_kurtosis(_df[f].tolist())
-                print ("{:<10} {:<10} {:<10} {:<10} {:<10.3f} {:<10.3f} {:<10.3f} {:<10.3f} {:<10.3f} {:<10.3f} {:<10.3f} {:<10.3f} {:<10.3f} {:<10}".format(t, f, _min,_max,_std,_mean,_median,_range,_quantile1,_quantile2,_quantile3,_skew,_kurtosis,_count))
+                print ("{:}, {:}, {:}, {:}, {:3f}, {:3f}, {:3f}, {:3f}, {:3f}, {:3f}, {:3f}, {:3f}, {:3f}, {:}".format(t, f, _min,_max,_std,_mean,_median,_range,_quantile1,_quantile2,_quantile3,_skew,_kurtosis,_count))
 
-# Read arguments
-dir_path = sys.argv[1]
+# Parse arguments
+parser = argparse.ArgumentParser(prog="per_interval_thread_stats.py", description='This script prints out statistics per threadID in csv format. These statistics consist of min, max, std, mean, median, range, Q1, Q2, Q3, skew, kurtosis, count.')
+
+# Define how a single command-line argument should be parsed.
+parser.add_argument('-i', '--input', type=str, required=True, help="Input directory path. This directory should contain only data of a single run.")\
+
+# Create a new ArgumentParser object.
+args = parser.parse_args()
+dir_path = args.input + '/'
 
 # Find CSV files
 csv_files = list_files(dir_path, ".csv")

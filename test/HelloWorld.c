@@ -8,7 +8,8 @@ void printHelloWorld();
 int main(void) {
     // initializing AppEKG library
     EKG_INITIALIZE(1, 1, 101, 42, 13, 1);
-
+    EKG_NAME_HEARTBEAT(1,"Print");
+    
     // printing Hello World
     printHelloWorld();
 

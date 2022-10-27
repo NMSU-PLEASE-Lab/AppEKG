@@ -13,6 +13,7 @@ The following values can be given as input:
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <time.h>
 #include <errno.h>
@@ -21,6 +22,7 @@ The following values can be given as input:
 
 void logHeartbeats(int heartbeatID, int numberOfHBForEachCycle, int durationOfEachHB, int intervalBetweenHBs);
 int msleep(long tms);
+char* getHBName(int id);
 
 int TO_MILLISECOND_FACTOR = 1000;
 
@@ -33,12 +35,6 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // initializing AppEKG library
-    EKG_INITIALIZE(3, 1, 101, 42, 13, 1);
-    //EKG_NAME_HEARTBEAT(1,"hb1");
-    //EKG_NAME_HEARTBEAT(2,"hb2");
-    //EKG_NAME_HEARTBEAT(3,"hb3");
-
     // capture data in integer form from command line input
     int numberOfHB = atoi(argv[1]);
     int numberOfCycle = atoi(argv[2]);
@@ -46,11 +42,17 @@ int main(int argc, char *argv[]) {
     int intervalBetweenHBs = atoi(argv[4]);
     int numberOfHBForEachCycle = atoi(argv[5]);
 
-    //printf("Number of HB: %d\n", numberOfHB);
-    //printf("Number of Cycle: %d\n", numberOfCycle);
-    //printf("Duration of Each HB: %d\n", durationOfEachHB);
-    //printf("Interval between HBs: %d\n", intervalBetweenHBs);
-    //printf("Number of HB for Each Cycle: %d\n", numberOfHBForEachCycle);
+    // initializing AppEKG library
+    EKG_INITIALIZE(numberOfHB, 1, 106, 56, 16, 1);
+
+    // naming HBs
+    for(int i = 0; i < numberOfHB; i++){
+        int id = i + 1;
+        EKG_NAME_HEARTBEAT(id, getHBName(id));
+    }
+    // EKG_NAME_HEARTBEAT(1,"hb1");
+    // EKG_NAME_HEARTBEAT(2,"hb2");
+    // EKG_NAME_HEARTBEAT(3,"hb3");
 
     // this loop controls the number of cycle
     for(int i=0;i<numberOfCycle;i++){
@@ -74,6 +76,20 @@ int main(int argc, char *argv[]) {
     EKG_FINALIZE();
 
     return 0;
+}
+
+char* getHBName(int id){
+    int length = snprintf(NULL, 0, "%d", id);
+    char* idStr = malloc(length + 1);
+    snprintf(idStr, length + 1, "%d", id);
+
+    static char hbName[4] = "hb";
+    strcpy(hbName, "hb");
+    strcat(hbName, idStr);
+
+    //printf("%d - %s - %s\n", id, hbName, idStr);
+    free(idStr);
+    return hbName;
 }
 
 void logHeartbeats(int heartbeatID, int numberOfHBForEachCycle, int durationOfEachHB, int intervalBetweenHBs){

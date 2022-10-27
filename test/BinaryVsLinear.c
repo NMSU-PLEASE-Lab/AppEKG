@@ -11,7 +11,10 @@ int linearSearchRecursive(int arr[], int n, int x);
 
 int main(void) {
     // initializing AppEKG library
-    EKG_INITIALIZE(3, 1, 101, 42, 13, 1);
+    EKG_INITIALIZE(3, 1, 103, 53, 13, 1);
+    EKG_NAME_HEARTBEAT(1,"Bin");
+    EKG_NAME_HEARTBEAT(2,"Lin");
+    EKG_NAME_HEARTBEAT(3,"LinRec");
 
     // declaring array size values
     int n = 32767;

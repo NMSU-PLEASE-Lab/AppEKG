@@ -16,29 +16,32 @@ void *linearSearchRecursiveThread(void *searchValue);
 
 int main(void) {
     // initializing AppEKG library
-    EKG_INITIALIZE(1, 1, 101, 42, 13, 1);
+    EKG_INITIALIZE(3, 1, 104, 54, 14, 1);
+    EKG_NAME_HEARTBEAT(1,"Bin");
+    EKG_NAME_HEARTBEAT(2,"Lin");
+    EKG_NAME_HEARTBEAT(3,"LinRec");
 
     // finding random x value for search operation
     srand(time(0));
-    int x = rand() % 32767;
+    int x = (rand() % 32767);
     //int x = 32000;
 
     pthread_t threads[3];
     int rc[3];
 
-    rc[0] = pthread_create(&threads[0], NULL, binarySearchThread, (void *)x);
+    rc[0] = pthread_create(&threads[0], NULL, binarySearchThread, &x);
     if (rc[0]) {
         printf("Error:unable to create thread\n");
         exit(-1);
     }
 
-    rc[1] = pthread_create(&threads[1], NULL, linearSearchThread, (void *)x);
+    rc[1] = pthread_create(&threads[1], NULL, linearSearchThread, &x);
     if (rc[1]) {
         printf("Error:unable to create thread\n");
         exit(-1);
     }
 
-    rc[2] = pthread_create(&threads[2], NULL, linearSearchRecursiveThread, (void *)x);
+    rc[2] = pthread_create(&threads[2], NULL, linearSearchRecursiveThread, &x);
     if (rc[2]) {
         printf("Error:unable to create thread\n");
         exit(-1);
@@ -64,7 +67,7 @@ void *binarySearchThread(void *searchValue){
     }
 
     int x;
-    x = (long)searchValue;
+    x = *((int*)searchValue);
 
     // performing binary search operation and storing the result
     int resultBinary = binarySearch(arr, 0, n - 1, x);
@@ -123,7 +126,7 @@ void *linearSearchThread(void *searchValue){
     }
 
     int x;
-    x = (long)searchValue;
+    x = *((int*)searchValue);
 
     // performing linear search operation and storing the result
     int resultLinear = linearSearch(arr, n, x);
@@ -165,7 +168,7 @@ void *linearSearchRecursiveThread(void *searchValue){
     }
 
     int x;
-    x = (long)searchValue;
+    x = *((int*)searchValue);
 
     // performing linear search operation recursively and storing the result
     int resultLinearRecursive = linearSearchRecursive(arr, n, x);
