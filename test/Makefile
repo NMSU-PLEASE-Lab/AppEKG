@@ -5,7 +5,7 @@ APPEKGDIR = ..
 CFLAGS = -I${APPEKGDIR} -Wall -fopenmp
 LDOBJS = -L${APPEKGDIR} -lappekg -lpthread 
 
-all: binary
+all: binary hello evensum
 
 hello: HelloWorld.o
 	gcc -o $@ $< ${LDOBJS} 

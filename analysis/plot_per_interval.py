@@ -75,15 +75,15 @@ x_label = "Time (sec)"
 parser = argparse.ArgumentParser(prog="plot_per_interval", description='Test passing arguments')
 
 # Define how a single command-line argument should be parsed.
-parser.add_argument('--input', '-i', type=str, required=True, help="Input file path. Full path to the per_interval_thread_stats.py output.")
+parser.add_argument('--input', '-i', type=str, required=True, help="Input file path. Full path to the per threadID/timemsec output csv file.")
 parser.add_argument('--output', '-o', type=str, required=False, help="Output directory path. If not defined, it will be saved in a location where scripts run.")
 parser.add_argument('--show', '-s', type=str, required=False, help="Preview plots. Default is set to false.", default=False)
-parser.add_argument('--type', '-t', type=str, required=False, choices=['per-tid','per-field'], help="Select what plots to generate. Per timesec and threadID or per timesec and field. Default is both.", default=True)
+parser.add_argument('--type', '-t', type=str, required=False, choices=['per-tid-timemsec','per-field'], help="Select what plots to generate. Per threadID/timemsec or per field/timemsec. Default is both.", default=True)
 
 # Create a new ArgumentParser object.
 args = parser.parse_args()
-inputPath = args.input
-outputPath = args.output + '/'
+inputPath = str(args.input)
+outputPath = str(args.output) + '/'
 show = args.show
 type = args.type
 
@@ -97,7 +97,7 @@ threadsIDs = getThreadsID(df)
 fields = getFields(df)
 
 # Plot data
-if type == 'per-tid':
+if type == 'per-tid-timemsec':
     plot_timesec_threadID(threadsIDs, timesec, fields, outputPath, show)
 elif type == 'per-field':
     plot_timesec_filed(timesec, fields, outputPath, show)

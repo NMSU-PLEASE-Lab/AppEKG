@@ -8,7 +8,7 @@ method.
 The defined macros are the preferred way of creating AppEKG
 instrumentation in an application, but the underlying functions
 are also available in the API; the functions for begin/end
-heatbeats do not inherently support a rate factor, however. 
+heartbeats do not inherently support a rate factor, however. 
 
 The macro interface is:  
 - EKG_BEGIN_HEARTBEAT(id, rateFactor) 
@@ -93,5 +93,62 @@ can be changed by editing _appekg.h_ (around line 90).
 
 ## Running analyses
 
-TO DO.
+There are different scripts in the _analyses_ directory that you can run to 
+conduct different analyses over the collected heartbeat data. 
+
+### Requirements
+
+The analyses scripts depend on the following modules:
+- pandas>=1.5.0
+- numpy>=1.23.3
+- matplotlib>=3.6.0
+- argparse>=1.4.0
+
+__Note__: These are not necessarily hard requirements, other new but less recent 
+versions will probably work; we have not done extensive version testing.
+ 
+To install those requirements in your environment using _pip_ run:
+```shell
+pip3 install -r requirements.txt
+```
+**Plotting the counts and durations of all heartbeats:**
+The _plotting.py_ script plots heartbeat counts and durations. It reads the 
+CSV and JSON files that were produced by the AppEKG tool and then plots the 
+heartbeat data. It plots heartbeat data per rank and per threadID per rank. 
+Each created plot contains a plot of each heartbeat.
+
+**How to run the script?**
+```shell
+python3 plotting.py [options]
+```
+ **Options:**
+- --input or -i: required to specify heartbeat data path. Make sure the 
+heartbeat data in the the directory is from a single run.
+- --output or -o: optional to specify where to save the plots. If not defined, 
+the input path is used.
+- --plot or -p: optional to select what to plot. If not defined all plot types 
+are produced (per rank and per threadID per processID).
+    - per-rank: plot heartbeat data per-processID only. If the app were run on 4 processes, 8 plots are created. (4 heartbeat counts and 4 heartbeat durations).
+    - per-tid-rank: plot heartbeat data per-threadID per-processID. If the app were run on 4 threads and 2 processes, 16 plots are created (8 heartbeat counts and 8 heartbeat durations), where each plot represents the data per-threadID per-processID.
+- --tid or -t: optinal to plot data of specific threadIDs. If not defined, heartbeat data of all threadIDs will plot
+- --rank or -r: optional to plot data of specific ranks. If not defined, heartbeat data of all ranks will plot 
+- --getranktid or -g: optional to print thread IDs and ranks. Default is set to false.
+- --show: optional to preview plots. Default is set to false.
+
+Examples:
+1. To plot heartbeat data located in "/path/toMyInput" per rank and save plots
+   in "/path/toMyInput", run:
+```shell
+python3 plotting.py --input "/path/toMyInput" --plot per-rank
+```
+2. To plot heartbeat data located in /path/toHBData/ per threadID per rank and
+   save the plots in "/path/where/toSavePlots"
+```shell
+python -i /path/toHBData/ -o /path/where/toSavePlots -p per-tid-rank
+```
+3. To plot heartbeat data located in "/path/toMyInput" of rank 15 only per rank
+   and save plots in the same path of input, run:
+```shell
+python3 plotting.py --input "/path/toMyInput" --plot per-rank --rank 15
+```
 
