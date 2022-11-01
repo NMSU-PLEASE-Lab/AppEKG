@@ -52,7 +52,6 @@ def plot_timesec_filed(timesec, fields, outputPath, show):
         _df = df[df["field"] == f].copy()
         color_index = 0
         _df = _df.groupby(["timemsec"], as_index=False).mean(numeric_only=True)
-        print(_df)
         _df.plot(ax=ax_, x="timemsec", y="mean",  xlabel="Time [ms]", ylabel=f , figsize=fig_size, color=line_colors[color_index % nColors])
         ax_.fill_between(x=_df["timemsec"], y1=_df["min"] , y2=_df["max"], alpha=.25, linewidth=0, color=shade_colors[color_index % nColors])
         color_index = color_index + 1
@@ -78,14 +77,14 @@ parser = argparse.ArgumentParser(prog="plot_per_interval", description='Test pas
 parser.add_argument('--input', '-i', type=str, required=True, help="Input file path. Full path to the per threadID/timemsec output csv file.")
 parser.add_argument('--output', '-o', type=str, required=False, help="Output directory path. If not defined, it will be saved in a location where scripts run.")
 parser.add_argument('--show', '-s', type=str, required=False, help="Preview plots. Default is set to false.", default=False)
-parser.add_argument('--type', '-t', type=str, required=False, choices=['per-tid-timemsec','per-field'], help="Select what plots to generate. Per threadID/timemsec or per field/timemsec. Default is both.", default=True)
+parser.add_argument('--plot', '-p', type=str, required=False, choices=['per-tid-timemsec','per-field-timemsec'], help="Select what plots to generate. Per threadID/timemsec or per field/timemsec. Default is both.", default=True)
 
 # Create a new ArgumentParser object.
 args = parser.parse_args()
-inputPath = str(args.input)
-outputPath = str(args.output) + '/'
+inputPath = args.input
+outputPath = args.output + '/'
 show = args.show
-type = args.type
+plot = args.plot
 
 if not os.path.exists(outputPath):
     os.makedirs(outputPath)
@@ -97,9 +96,9 @@ threadsIDs = getThreadsID(df)
 fields = getFields(df)
 
 # Plot data
-if type == 'per-tid-timemsec':
+if plot == 'per-tid-timemsec':
     plot_timesec_threadID(threadsIDs, timesec, fields, outputPath, show)
-elif type == 'per-field':
+elif plot == 'per-field-timemsec':
     plot_timesec_filed(timesec, fields, outputPath, show)
 else:
     plot_timesec_threadID(threadsIDs, timesec, fields, outputPath, show)

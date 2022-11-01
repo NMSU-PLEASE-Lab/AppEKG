@@ -111,6 +111,37 @@ To install those requirements in your environment using _pip_ run:
 ```shell
 pip3 install -r requirements.txt
 ```
+
+**Running statistics on heartbeat data:**
+The _stats.py_ prints out statistics per threadID per timemsec and processID per threadID in a CSV format. 
+These statistics consist of min, max, std, mean, median, range, Q1, Q2, Q3, skew, 
+kurtosis, count. It reads the CSV files that were produced by the AppEKG tool. 
+
+**How to run the script?**
+```shell
+python3 stats.py [options]
+```
+ **Options:**
+- --input or -i: required to specify heartbeat data path. Make sure the 
+heartbeat data in the the directory is from a single run.
+- --type or -t: required to select what to data statistics to output. 
+    - per-tid-timemsec - statistics calculated over all ranks per threadID per timemsec.
+    - per-pid-tid - statistics calculated per rank per threadID.
+
+
+Examples:
+1. To print statistics based on heartbeat data located in "/path/toMyInput" per rank per threadID
+   in "/path/toMyInput", run:
+```shell
+python3 stats.py --input "/path/toMyInput" --type per-pid-tid
+```
+2. To save statistics based on heartbeat data located in "/path/toHBData/" over all ranks per threadID per timemsec and
+   save the data in "/path/where/toSaveStats/stats.csv"
+```shell
+python stats.py -i /path/toHBData/ -p per-tid-timemsec > /path/where/toSaveStats/stats.csv
+```
+
+
 **Plotting the counts and durations of all heartbeats:**
 The _plotting.py_ script plots heartbeat counts and durations. It reads the 
 CSV and JSON files that were produced by the AppEKG tool and then plots the 
@@ -141,10 +172,10 @@ Examples:
 ```shell
 python3 plotting.py --input "/path/toMyInput" --plot per-rank
 ```
-2. To plot heartbeat data located in /path/toHBData/ per threadID per rank and
+2. To plot heartbeat data located in "/path/toHBData/" per threadID per rank and
    save the plots in "/path/where/toSavePlots"
 ```shell
-python -i /path/toHBData/ -o /path/where/toSavePlots -p per-tid-rank
+python plotting.py -i /path/toHBData/ -o /path/where/toSavePlots -p per-tid-rank
 ```
 3. To plot heartbeat data located in "/path/toMyInput" of rank 15 only per rank
    and save plots in the same path of input, run:
@@ -152,3 +183,34 @@ python -i /path/toHBData/ -o /path/where/toSavePlots -p per-tid-rank
 python3 plotting.py --input "/path/toMyInput" --plot per-rank --rank 15
 ```
 
+**Plotting the counts and durations of all heartbeats per threadID/timemsec and field/timemsec:**
+The _plot_per_interval.py_ script plots heartbeat counts and durations. It reads the CSV file
+file that was produced by the _stats.py_ script when chosing an "per-tid-timemsec" option and 
+then plots the average heartbeat data over all processes. It plots heartbeat data per threadID 
+and timemsec, and per field and timemsec.
+
+**How to run the script?**
+```shell
+python3 plot_per_interval.py [options]
+```
+ **Options:**
+- --input or -i: required to specify data path for output of the _stats.py_ script when chosing an "per-tid-timemsec" option.
+- --output or -o: optional to specify where to save the plots. If not defined, 
+the input path is used.
+- --plot or -p: optional to select what to plot. If not defined all plot types 
+are produced (per threadID per timemsec and per field per timemsec).
+    - per-tid-timemsec: plot heartbeat data per-threadID per-timemsec only. If the app has 3 heartbeats, 6 plots are created. (3 heartbeat counts and 3 heartbeat durations).
+    - per-field-timemsec: plot average heartbeat data for all processes per-field per-timemsec. If the app has 3 heartbeats, 6 plots are created. (3 heartbeat counts and 3 heartbeat durations).
+- --show: optional to preview plots. Default is set to false.
+
+Examples:
+1. To plot heartbeat data located in "/path/toMyInput" per threadID per timemsec and save plots
+   in "/path/toMyInput", run:
+```shell
+python3 plot_per_interval.py --input "/path/toMyInput" --plot per-tid-timemsec
+```
+2. To plot heartbeat data located in "/path/toHBData/" per field per timemsec and
+   save the plots in "/path/where/toSavePlots"
+```shell
+python plot_per_interval.py  -i /path/toHBData/ -o /path/where/toSavePlots -p per-field-timemsec
+```

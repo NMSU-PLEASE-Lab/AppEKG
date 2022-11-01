@@ -1,7 +1,7 @@
 #
 # stats.py
 #
-# This script prints out statistics per tid/timesec and pid/tid in a csv format. These statistics consist of min, max, std, mean, median, range, Q1, Q2, Q3, skew, kurtosis, count.
+# This script prints out statistics per tid/timemsec and pid/tid in a csv format. These statistics consist of min, max, std, mean, median, range, Q1, Q2, Q3, skew, kurtosis, count.
 # To run the script, please use python3 and run 'python3 stats.py --help' for more instruction on how to run it.
 # 
 
