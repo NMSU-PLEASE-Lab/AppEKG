@@ -107,12 +107,13 @@ The analyses scripts depend on the following modules:
 __Note__: These are not necessarily hard requirements, other new but less recent 
 versions will probably work; we have not done extensive version testing.
  
-To install those requirements in your environment using _pip_ run:
+To install those requirements in your environment using _pip_, run:
 ```shell
 pip3 install -r requirements.txt
 ```
 
-**Running statistics on heartbeat data:**
+### Running statistics on heartbeat data
+
 The _stats.py_ prints out statistics per threadID per timemsec and processID per threadID in a CSV format. 
 These statistics consist of min, max, std, mean, median, range, Q1, Q2, Q3, skew, 
 kurtosis, count. It reads the CSV files that were produced by the AppEKG tool. 
@@ -141,12 +142,14 @@ python3 stats.py --input "/path/toMyInput" --type per-pid-tid
 python stats.py -i /path/toHBData/ -p per-tid-timemsec > /path/where/toSaveStats/stats.csv
 ```
 
+### Plotting the counts and durations of all heartbeats
 
-**Plotting the counts and durations of all heartbeats:**
 The _plotting.py_ script plots heartbeat counts and durations. It reads the 
 CSV and JSON files that were produced by the AppEKG tool and then plots the 
 heartbeat data. It plots heartbeat data per rank and per threadID per rank. 
-Each created plot contains a plot of each heartbeat.
+Each created plot contains a plot of each heartbeat. the AppEKG tool produces a CSV file from each rank, where each file consists the heartbeat data of the related rank. If an application is multithreaded, different threads in each CSV will present, where each thread produces its own heartbeat data.
+1. Per rank plotting: this plots the heartbeat data of the CSV files (ranks) regardless of the threadIDs. It skips the threadIDs and consider the heartbeat data of a single rank for plotting.
+2. Per threadID per rank plotting: this plots the heartbeat data of each threadID. When the application is multithreaded, each CSV file contains the heartbeat data per threadID. If there are 4 threads, there will be 2 plots per threadID (one for heartbeat count and one for duration). This means threre will be 8 plots per CSV file (rank).  
 
 **How to run the script?**
 ```shell
@@ -183,7 +186,8 @@ python plotting.py -i /path/toHBData/ -o /path/where/toSavePlots -p per-tid-rank
 python3 plotting.py --input "/path/toMyInput" --plot per-rank --rank 15
 ```
 
-**Plotting the counts and durations of all heartbeats per threadID/timemsec and field/timemsec:**
+### Plotting the counts and durations of all heartbeats per threadID/timemsec and field/timemsec
+
 The _plot_per_interval.py_ script plots heartbeat counts and durations. It reads the CSV file
 file that was produced by the _stats.py_ script when chosing an "per-tid-timemsec" option and 
 then plots the average heartbeat data over all processes. It plots heartbeat data per threadID 
@@ -214,3 +218,4 @@ python3 plot_per_interval.py --input "/path/toMyInput" --plot per-tid-timemsec
 ```shell
 python plot_per_interval.py  -i /path/toHBData/ -o /path/where/toSavePlots -p per-field-timemsec
 ```
+
