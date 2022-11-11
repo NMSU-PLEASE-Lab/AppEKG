@@ -218,4 +218,8 @@ python3 plot_per_interval.py --input "/path/toMyInput" --plot per-tid-timemsec
 ```shell
 python plot_per_interval.py  -i /path/toHBData/ -o /path/where/toSavePlots -p per-field-timemsec
 ```
+## Acknowledgments
+
+This work was supported in part by Sandia National Laboratories.
+No endorsement is implied.
 
