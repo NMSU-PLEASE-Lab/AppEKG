@@ -80,17 +80,17 @@ extern "C" {
 //--------------------------------------------------------------------
 // Completely empy AppEKG macro definitions, for compiling AppEKG out
 //--------------------------------------------------------------------
-#define EKG_BEGIN_HEARTBEAT(id, rateFactor) 
-#define EKG_END_HEARTBEAT(id) 
-#define EKG_PULSE_HEARTBEAT(id, rateFactor) 
-#define EKG_INITIALIZE(numHeartbeats, samplingInterval, appid, jobid, \
-                       rank, silent) 
-#define EKG_FINALIZE() 
-#define EKG_DISABLE() 
-#define EKG_ENABLE() 
-#define EKG_NAME_HEARTBEAT(id, name) 
-#define EKG_IDOF_HEARTBEAT(name) 
-#define EKG_NAMEOF_HEARTBEAT(id) 
+#define EKG_BEGIN_HEARTBEAT(id, rateFactor)
+#define EKG_END_HEARTBEAT(id)
+#define EKG_PULSE_HEARTBEAT(id, rateFactor)
+#define EKG_INITIALIZE(numHeartbeats, samplingInterval, appid, jobid, rank,    \
+                       silent)
+#define EKG_FINALIZE()
+#define EKG_DISABLE()
+#define EKG_ENABLE()
+#define EKG_NAME_HEARTBEAT(id, name)
+#define EKG_IDOF_HEARTBEAT(name)
+#define EKG_NAMEOF_HEARTBEAT(id)
 
 #else
 
@@ -101,7 +101,7 @@ extern "C" {
 //--------------------------------------------------------------------
 // API Macros
 // TODO: technically, the actual thread id check and set in the begin
-// macro does have a race condition, but we really don't want the 
+// macro does have a race condition, but we really don't want the
 // overhead of a lock; the race would be only over those threads that
 // actually collided in the hashing, and it is only a few instructions
 // long. The first heartbeat might get screwed up but after that, things
@@ -114,34 +114,38 @@ extern "C" {
 * @param id is the heartbeat id (1 and up)
 * @param rateFactor limits HB production (100 == 1 HB every 100 invocations)
 **/
-#define EKG_BEGIN_HEARTBEAT(id, rateFactor) \
-           do { unsigned int rid = _ekgThreadId(); \
-              unsigned int tid = rid % EKG_MAX_THREADS; \
-              if (_ekgActualThreadID[tid] == 0) \
-                 _ekgActualThreadID[tid] = rid; \
-              else if (_ekgActualThreadID[tid] != rid) \
-                 break; \
-              tid = tid * EKG_MAX_HEARTBEATS + (id) - 1; \
-              if ((_ekgHBCount[tid]++) % (rateFactor) == 0) { \
-                 ekgBeginHeartbeat((id)); \
-                 _ekgHBEndFlag[tid] = 1; } \
-           } while (0)
+#define EKG_BEGIN_HEARTBEAT(id, rateFactor)                                    \
+    do {                                                                       \
+        unsigned int rid = _ekgThreadId();                                     \
+        unsigned int tid = rid % EKG_MAX_THREADS;                              \
+        if (_ekgActualThreadID[tid] == 0)                                      \
+            _ekgActualThreadID[tid] = rid;                                     \
+        else if (_ekgActualThreadID[tid] != rid)                               \
+            break;                                                             \
+        tid = tid * EKG_MAX_HEARTBEATS + (id)-1;                               \
+        if ((_ekgHBCount[tid]++) % (rateFactor) == 0) {                        \
+            ekgBeginHeartbeat((id));                                           \
+            _ekgHBEndFlag[tid] = 1;                                            \
+        }                                                                      \
+    } while (0)
 
 /**
 * \brief End a heartbeat (insert this at ending site of instrumentation)
 *
 * @param id is the heartbeat id (1 and up)
 **/
-#define EKG_END_HEARTBEAT(id) \
-           do { unsigned int rid = _ekgThreadId(); \
-              unsigned int tid = rid % EKG_MAX_THREADS; \
-              if (_ekgActualThreadID[tid] != rid) \
-                 break; \
-              tid = tid * EKG_MAX_HEARTBEATS + (id) - 1; \
-              if (_ekgHBEndFlag[tid]) { \
-                 ekgEndHeartbeat((id)); \
-                 _ekgHBEndFlag[tid] = 0; } \
-           } while (0)
+#define EKG_END_HEARTBEAT(id)                                                  \
+    do {                                                                       \
+        unsigned int rid = _ekgThreadId();                                     \
+        unsigned int tid = rid % EKG_MAX_THREADS;                              \
+        if (_ekgActualThreadID[tid] != rid)                                    \
+            break;                                                             \
+        tid = tid * EKG_MAX_HEARTBEATS + (id)-1;                               \
+        if (_ekgHBEndFlag[tid]) {                                              \
+            ekgEndHeartbeat((id));                                             \
+            _ekgHBEndFlag[tid] = 0;                                            \
+        }                                                                      \
+    } while (0)
 
 /**
 * \brief Create an impulse heartbeat (single site instrumentation)
@@ -149,18 +153,20 @@ extern "C" {
 * @param id is the heartbeat id (1 and up)
 * @param rateFactor limits HB production (100 == 1 HB every 100 invocations)
 **/
-#define EKG_PULSE_HEARTBEAT(id, rateFactor) \
-           do { unsigned int rid = _ekgThreadId(); \
-              unsigned int tid = rid % EKG_MAX_THREADS; \
-              if (_ekgActualThreadID[tid] == 0) \
-                 _ekgActualThreadID[tid] = rid; \
-              else if (_ekgActualThreadID[tid] != rid) \
-                 break; \
-              tid = tid * EKG_MAX_HEARTBEATS + (id) - 1; \
-              if ((_ekgHBCount[tid]++) % (rateFactor) == 0) { \
-                 ekgBeginHeartbeat((id)); \
-                 ekgEndHeartbeat((id)); } \
-           } while (0)
+#define EKG_PULSE_HEARTBEAT(id, rateFactor)                                    \
+    do {                                                                       \
+        unsigned int rid = _ekgThreadId();                                     \
+        unsigned int tid = rid % EKG_MAX_THREADS;                              \
+        if (_ekgActualThreadID[tid] == 0)                                      \
+            _ekgActualThreadID[tid] = rid;                                     \
+        else if (_ekgActualThreadID[tid] != rid)                               \
+            break;                                                             \
+        tid = tid * EKG_MAX_HEARTBEATS + (id)-1;                               \
+        if ((_ekgHBCount[tid]++) % (rateFactor) == 0) {                        \
+            ekgBeginHeartbeat((id));                                           \
+            ekgEndHeartbeat((id));                                             \
+        }                                                                      \
+    } while (0)
 
 /**
 * \brief Initialize AppEKG
@@ -173,28 +179,36 @@ extern "C" {
 * @param rank is the MPI rank of this process (can be 0)
 * @param silent is 1 to turn off any AppEKG stderr reporting
 **/
-#define EKG_INITIALIZE(numHeartbeats, samplingInterval, appid, jobid, \
-                       rank, silent)  \
-           do { ekgInitialize((numHeartbeats), (samplingInterval), (appid), \
-                              (jobid), (rank), (silent)); } while (0)
+#define EKG_INITIALIZE(numHeartbeats, samplingInterval, appid, jobid, rank,    \
+                       silent)                                                 \
+    do {                                                                       \
+        ekgInitialize((numHeartbeats), (samplingInterval), (appid), (jobid),   \
+                      (rank), (silent));                                       \
+    } while (0)
 
 /**
 * \brief Shut down AppEKG and stop collecting heartbeat data
 **/
-#define EKG_FINALIZE() \
-           do { ekgFinalize(); } while (0)
+#define EKG_FINALIZE()                                                         \
+    do {                                                                       \
+        ekgFinalize();                                                         \
+    } while (0)
 
 /**
 * \brief Stop AppEKG from collecting heartbeat data, possibly temporarily
 **/
-#define EKG_DISABLE() \
-           do { ekgDisable(); } while (0)
+#define EKG_DISABLE()                                                          \
+    do {                                                                       \
+        ekgDisable();                                                          \
+    } while (0)
 
 /**
 * \brief Start (restart) AppEKG collecting heartbeat data
 **/
-#define EKG_ENABLE() \
-           do { ekgEnable(); } while (0)
+#define EKG_ENABLE()                                                           \
+    do {                                                                       \
+        ekgEnable();                                                           \
+    } while (0)
 
 /**
 * \brief Provide a name for a heartbeat
@@ -202,17 +216,17 @@ extern "C" {
 * @param id is the heartbeat id (1 and up)
 * @param name is the string name of the heartbeat (will be copied)
 **/
-#define EKG_NAME_HEARTBEAT(id, name) \
-           do { ekgNameHeartbeat((id), (name)); \
-              } while (0)
+#define EKG_NAME_HEARTBEAT(id, name)                                           \
+    do {                                                                       \
+        ekgNameHeartbeat((id), (name));                                        \
+    } while (0)
 
 /**
 * \brief Lookup heartbeat by name and return the ID
 *
 * @param name is the string name of the heartbeat
 **/
-#define EKG_IDOF_HEARTBEAT(name) \
-           ({ ekgIdOfHeartbeat((name)) })
+#define EKG_IDOF_HEARTBEAT(name) ({ekgIdOfHeartbeat((name))})
 
 /**
 * \brief Lookup heartbeat by ID and return the name
@@ -220,8 +234,7 @@ extern "C" {
 * @param id is the heartbeat id (1 and up)
 * @return a newly allocated string name of heartbeat, or NULL
 **/
-#define EKG_NAMEOF_HEARTBEAT(id) \
-           ({ ekgNameOfHeartbeat((id)) })
+#define EKG_NAMEOF_HEARTBEAT(id) ({ekgNameOfHeartbeat((id))})
 
 //--------------------------------------------------------------------
 // API functions
@@ -253,9 +266,9 @@ void ekgPulseHeartbeat(unsigned int id);
 * \param silent is nonzero if want no stderr
 * \return 0 on success, negative on failure
 **/
-int  ekgInitialize(unsigned int numHeartbeats, float samplingInterval,
-                   unsigned int appid,  unsigned int jobid, 
-                   unsigned int rank, unsigned int silent);
+int ekgInitialize(unsigned int numHeartbeats, float samplingInterval,
+                  unsigned int appid, unsigned int jobid, unsigned int rank,
+                  unsigned int silent);
 
 /**
 * \brief Finish AppEKG data collection, permanently
@@ -276,7 +289,7 @@ void ekgEnable(void);
 * \brief Provide a name for a heartbeat
 * \return 0 on success, -1 on failure
 **/
-int  ekgNameHeartbeat(unsigned int id, char* name);
+int ekgNameHeartbeat(unsigned int id, char* name);
 
 /**
 * \brief Find ID of heartbeat from name
@@ -293,12 +306,12 @@ char* ekgNameOfHeartbeat(unsigned int id);
 // Rate factor control data
 // in-library sources needs to define EKG_EXTERN as empty
 #ifndef EKG_EXTERN
-  #define EKG_EXTERN extern
+#define EKG_EXTERN extern
 #endif
 EKG_EXTERN unsigned int* _ekgHBEndFlag;
 EKG_EXTERN unsigned int* _ekgHBCount;
 // track the actual thread id that is hashed to this location, other
-// threads that hash here will be ignored 
+// threads that hash here will be ignored
 EKG_EXTERN unsigned int* _ekgActualThreadID;
 EKG_EXTERN unsigned long (*_ekgThreadId)(void);
 
@@ -309,4 +322,3 @@ EKG_EXTERN unsigned long (*_ekgThreadId)(void);
 #endif
 
 #endif // ifdef APPEKG_H
-

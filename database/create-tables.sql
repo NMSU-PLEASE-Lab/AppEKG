@@ -19,43 +19,50 @@ CREATE TABLE IF NOT EXISTS Application (
 );
 
 CREATE TABLE IF NOT EXISTS Job (
-   id INTEGER PRIMARY KEY NOT NULL,
+   id INTEGER,
    user INTEGER,
-   beginTime INTEGER, /* should this be a text? */
-   endTime INTEGER,
-   numNodes INTEGER,
-   numProcesses INTEGER,
-   appId INTEGER
+   begin_time INTEGER,
+   end_time INTEGER,
+   num_nodes INTEGER,
+   num_processes INTEGER,
+   app_id INTEGER,
+   PRIMARY KEY(id),
+   FOREIGN KEY(app_id) REFERENCES Application
 );
 
 CREATE TABLE IF NOT EXISTS Process (
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
    pid INTEGER,
-   nodeId INTEGER,
-   jobId INTEGER,
+   node_id INTEGER,
+   job_id INTEGER,
    rank INTEGER,
-   numThreads INTEGER,
-   PRIMARY KEY(pid, nodeId, jobId) /* iKey int */
+   num_threads INTEGER,
+   FOREIGN KEY(job_id) REFERENCES Job
 );
 
 CREATE TABLE IF NOT EXISTS EKGSample (
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
    time INTEGER,
-   threadId INTEGER,
-   processKey INTEGER,
-   PRIMARY KEY(threadId, processKey) /* iKey int */
+   thread_id INTEGER,
+   process_id INTEGER,
+   FOREIGN KEY(process_id) REFERENCES Process
 );
 
 CREATE TABLE IF NOT EXISTS Heartbeat (
    id INTEGER,
    name TEXT,
-   appId INTEGER,
-   PRIMARY KEY(id, appId) /* iKey int */
+   app_id INTEGER,
+   PRIMARY KEY(id),
+   FOREIGN KEY(app_id) REFERENCES Application
 );
 
 CREATE TABLE IF NOT EXISTS HBSample (
    id INTEGER PRIMARY KEY AUTOINCREMENT,
-   numHeartbeats INTEGER,
-   avgDuration REAL,
-   hbKey INTEGER,
-   sampleKey INTEGER
+   num_heartbeats INTEGER,
+   avg_duration REAL,
+   hb_id INTEGER,
+   sample_id INTEGER,
+   FOREIGN KEY(sample_id) REFERENCES EKGSample,
+   FOREIGN KEY(hb_id) REFERENCES Heartbeat
 );
 
