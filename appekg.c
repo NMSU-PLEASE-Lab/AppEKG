@@ -39,10 +39,16 @@
 // but this may not work on all platforms; e.g., some OpenMP
 // implementations may not use pthreads under the hood. We eventually
 // need to support compile options here.
+#ifdef EKG_USE_OPENMP
+#include <omp.h>
+#define THREAD_ID (omp_get_thread_num()%EKG_MAX_THREADS)
+#define THREAD_ID_FULL (omp_get_thread_num())
+#define THREAD_ID_FUNC omp_get_thread_num
+#else
 #define THREAD_ID (((unsigned int)pthread_self()) % EKG_MAX_THREADS)
 #define THREAD_ID_FULL ((unsigned int)pthread_self())
-//#define THREAD_ID (omp_get_thread_num()%EKG_MAX_THREADS)
-//#define THREAD_ID_FULL (omp_get_thread_num())
+#define THREAD_ID_FUNC pthread_self
+#endif
 //--------------------------------------------------------------------
 
 static enum {
@@ -175,7 +181,7 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
                                         EKG_MAX_HEARTBEATS * EKG_MAX_THREADS);
     _ekgActualThreadID =
           (unsigned int*)calloc(sizeof(unsigned int), EKG_MAX_THREADS);
-    _ekgThreadId = pthread_self;
+    _ekgThreadId = THREAD_ID_FUNC; 
 
     // Set up job id if needed: JEC - I changed this to override the
     // initialization argument rather than defer to it.
@@ -369,7 +375,12 @@ void ekgEndHeartbeat(unsigned int hbId)
     // calculate duration
     duration = (endHBTime - beginHBTime[thId][hbId]);
     // lock count and duration update from other threads
+#ifdef EKG_USE_OPENMP
+#pragma omp critical
+{
+#else
     pthread_mutex_lock(&hblock);
+#endif
     hbId = (hbId - 1) * 2 + 1; // map to thread data array
     if (threadMetrics[thId][hbId].v.u64val > 0) {
         // too much arithmetic for high-intensity heartbeats, this
@@ -384,7 +395,11 @@ void ekgEndHeartbeat(unsigned int hbId)
         threadMetrics[thId][hbId + 1].v.dpval = duration;
         threadMetrics[thId][hbId].v.u64val++;
     }
+#ifdef EKG_USE_OPENMP
+}
+#else
     pthread_mutex_unlock(&hblock);
+#endif
     return;
 }
 

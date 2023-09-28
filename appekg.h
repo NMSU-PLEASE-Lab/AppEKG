@@ -97,6 +97,14 @@ extern "C" {
 // Operating Parameters
 #define EKG_MAX_THREADS 57
 #define EKG_MAX_HEARTBEATS 20
+// comment out the below to use pthread functions for 
+// determining thread IDs, uncomment to use OpenMP functions
+#define EKG_USE_OPENMP
+
+// Thread ID note: we use a function pointer _ekgThreadId() that
+// is set to reference either pthread_self() or omp_get_thread_num().
+// In the macros, the thread id is "+1" because OpenMP threads IDs
+// start at 0, and we use 0 as an indication of "no thread".
 
 //--------------------------------------------------------------------
 // API Macros
@@ -116,7 +124,7 @@ extern "C" {
 **/
 #define EKG_BEGIN_HEARTBEAT(id, rateFactor)                                    \
     do {                                                                       \
-        unsigned int rid = _ekgThreadId();                                     \
+        unsigned int rid = _ekgThreadId()+1;                                   \
         unsigned int tid = rid % EKG_MAX_THREADS;                              \
         if (_ekgActualThreadID[tid] == 0)                                      \
             _ekgActualThreadID[tid] = rid;                                     \
@@ -136,7 +144,7 @@ extern "C" {
 **/
 #define EKG_END_HEARTBEAT(id)                                                  \
     do {                                                                       \
-        unsigned int rid = _ekgThreadId();                                     \
+        unsigned int rid = _ekgThreadId()+1;                                   \
         unsigned int tid = rid % EKG_MAX_THREADS;                              \
         if (_ekgActualThreadID[tid] != rid)                                    \
             break;                                                             \
@@ -155,7 +163,7 @@ extern "C" {
 **/
 #define EKG_PULSE_HEARTBEAT(id, rateFactor)                                    \
     do {                                                                       \
-        unsigned int rid = _ekgThreadId();                                     \
+        unsigned int rid = _ekgThreadId()+1;                                   \
         unsigned int tid = rid % EKG_MAX_THREADS;                              \
         if (_ekgActualThreadID[tid] == 0)                                      \
             _ekgActualThreadID[tid] = rid;                                     \
