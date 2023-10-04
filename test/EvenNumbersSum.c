@@ -37,7 +37,7 @@ int main(int argc, char **argv)
        }
     }
     // initializing AppEKG library
-    EKG_INITIALIZE(3, 1, 105, 55, 15, 1);
+    EKG_INITIALIZE(3, 1, 105, 55, 15, 0);
     EKG_NAME_HEARTBEAT(1,"Gen");
     EKG_NAME_HEARTBEAT(2,"Find");
     EKG_NAME_HEARTBEAT(3,"Sum");

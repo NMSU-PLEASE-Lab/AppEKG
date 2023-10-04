@@ -99,7 +99,7 @@ extern "C" {
 #define EKG_MAX_HEARTBEATS 20
 // comment out the below to use pthread functions for 
 // determining thread IDs, uncomment to use OpenMP functions
-#define EKG_USE_OPENMP
+//#define EKG_USE_OPENMP (now in Makefile, do not uncomment this)
 
 // Thread ID note: we use a function pointer _ekgThreadId() that
 // is set to reference either pthread_self() or omp_get_thread_num().
@@ -126,10 +126,13 @@ extern "C" {
     do {                                                                       \
         unsigned int rid = _ekgThreadId()+1;                                   \
         unsigned int tid = rid % EKG_MAX_THREADS;                              \
-        if (_ekgActualThreadID[tid] == 0)                                      \
-            _ekgActualThreadID[tid] = rid;                                     \
-        else if (_ekgActualThreadID[tid] != rid)                               \
-            break;                                                             \
+        if (_ekgActualThreadID[tid] == 0) {                                    \
+            if (0) fprintf(stderr,"ekgBH: register thread %u %u\n",tid,rid);   \
+            _ekgActualThreadID[tid] = rid; }                                   \
+        else if (_ekgActualThreadID[tid] != rid) {                             \
+            if (0) fprintf(stderr,"ekgBH: skipping thread %u %u\n",tid,rid);   \
+            break; }                                                           \
+        if (0) fprintf(stderr,"ekgBH: %u thread %u %u\n",(id),tid,rid);        \
         tid = tid * EKG_MAX_HEARTBEATS + (id)-1;                               \
         if ((_ekgHBCount[tid]++) % (rateFactor) == 0) {                        \
             ekgBeginHeartbeat((id));                                           \
@@ -146,8 +149,10 @@ extern "C" {
     do {                                                                       \
         unsigned int rid = _ekgThreadId()+1;                                   \
         unsigned int tid = rid % EKG_MAX_THREADS;                              \
-        if (_ekgActualThreadID[tid] != rid)                                    \
-            break;                                                             \
+        if (_ekgActualThreadID[tid] != rid) {                                  \
+            if (0) fprintf(stderr,"ekgEH: skipping thread %u %u\n",tid,rid);   \
+            break; }                                                           \
+        if (0) fprintf(stderr,"ekgEH: %u thread %u %u\n",(id),tid,rid);        \
         tid = tid * EKG_MAX_HEARTBEATS + (id)-1;                               \
         if (_ekgHBEndFlag[tid]) {                                              \
             ekgEndHeartbeat((id));                                             \

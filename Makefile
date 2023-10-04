@@ -5,7 +5,7 @@
 # OpenMP support (ON/OFF)
 DO_USE_OPENMP = ON
 ifeq ($(DO_USE_OPENMP),ON)
-OMPFLAGS = -fopenmp
+OMPFLAGS = -DEKG_USE_OPENMP -fopenmp
 else 
 OMPFLAGS = 
 endif
@@ -19,6 +19,7 @@ else
 LDMSFLAGS = 
 endif
 
+# -DDEBUG is allowable
 CFLAGS = ${OMPFLAGS} ${LDMSFLAGS}
 
 .phony: all doc clean
@@ -32,7 +33,7 @@ appekg.o: appekg.c appekg.h
 	gcc -Wall -c $(CFLAGS) appekg.c
 
 clean:
-	rm -rf *.o *.a
+	rm -rf *.o libappekg.a
 
 doc: Doxyfile appekg.c appekg.h
 	doxygen Doxyfile

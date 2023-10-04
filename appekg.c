@@ -35,18 +35,18 @@
 #define FILENAME_PREFIX "appekg"
 
 //--------------------------------------------------------------------
-// macro for getting thread ID; currently just uses pthread_self(),
-// but this may not work on all platforms; e.g., some OpenMP
-// implementations may not use pthreads under the hood. We eventually
-// need to support compile options here.
+// macros for getting thread ID; choices are either OpenMP or
+// Pthreads. We do +1 so that we don't start at 0 for OpenMP, but
+// since it MUST match the +1 in the macros EKG_BEGIN/END/PULSE_HB,
+// we must do it in all macros (pthreads, too).
 #ifdef EKG_USE_OPENMP
 #include <omp.h>
-#define THREAD_ID (omp_get_thread_num()%EKG_MAX_THREADS)
-#define THREAD_ID_FULL (omp_get_thread_num())
+#define THREAD_ID ((omp_get_thread_num()+1)%EKG_MAX_THREADS)
+#define THREAD_ID_FULL (omp_get_thread_num()+1)
 #define THREAD_ID_FUNC omp_get_thread_num
 #else
-#define THREAD_ID (((unsigned int)pthread_self()) % EKG_MAX_THREADS)
-#define THREAD_ID_FULL ((unsigned int)pthread_self())
+#define THREAD_ID (((unsigned int)pthread_self()+1) % EKG_MAX_THREADS)
+#define THREAD_ID_FULL ((unsigned int)pthread_self()+1)
 #define THREAD_ID_FUNC pthread_self
 #endif
 //--------------------------------------------------------------------
@@ -176,11 +176,11 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
     // application instrumentation macros, and so their names
     // must be namespaced and not conflict with application names
     _ekgHBEndFlag = (unsigned int*)calloc(sizeof(unsigned int),
-                                          EKG_MAX_HEARTBEATS * EKG_MAX_THREADS);
+                                          EKG_MAX_HEARTBEATS * (EKG_MAX_THREADS+1));
     _ekgHBCount = (unsigned int*)calloc(sizeof(unsigned int),
-                                        EKG_MAX_HEARTBEATS * EKG_MAX_THREADS);
+                                        EKG_MAX_HEARTBEATS * (EKG_MAX_THREADS+1));
     _ekgActualThreadID =
-          (unsigned int*)calloc(sizeof(unsigned int), EKG_MAX_THREADS);
+          (unsigned int*)calloc(sizeof(unsigned int), EKG_MAX_THREADS+1);
     _ekgThreadId = THREAD_ID_FUNC; 
 
     // Set up job id if needed: JEC - I changed this to override the
@@ -322,6 +322,10 @@ void ekgBeginHeartbeat(unsigned int hbId)
         return;
     unsigned int thId = THREAD_ID;
     unsigned int realId = THREAD_ID_FULL;
+#ifdef DEBUG
+        fprintf(stderr,"ekgBHF: %u tid %u rid %u stid %u\n", hbId, thId, realId,
+                _ekgActualThreadID[thId]);
+#endif
     if (_ekgActualThreadID[thId] == 0)
         _ekgActualThreadID[thId] = realId;
     else if (_ekgActualThreadID[thId] != realId)
@@ -360,6 +364,10 @@ void ekgEndHeartbeat(unsigned int hbId)
         return;
     struct timespec endTime;
     unsigned int thId = THREAD_ID;
+#ifdef DEBUG
+        fprintf(stderr,"ekgEHF: %u tid %u rid %u stid %u\n", hbId, thId,
+                THREAD_ID_FULL, _ekgActualThreadID[thId]);
+#endif
     if (_ekgActualThreadID[thId] != THREAD_ID_FULL)
         return;
     if (clock_gettime(CLOCK_REALTIME, &endTime) == -1) {
@@ -374,6 +382,7 @@ void ekgEndHeartbeat(unsigned int hbId)
           ((1000000 * endTime.tv_sec) + (endTime.tv_nsec / 1000));
     // calculate duration
     duration = (endHBTime - beginHBTime[thId][hbId]);
+    beginHBTime[thId][hbId] = 0;
     // lock count and duration update from other threads
 #ifdef EKG_USE_OPENMP
 #pragma omp critical
@@ -977,6 +986,52 @@ static void finalizeHeartbeatData(void* arg)
 {
     if (appekgStatus != APPEKG_STAT_OK)
         return;
+
+    // JEC: Should we try to check for any unfinished heartbeats and
+    // then end them forcefully? It seems like some threads leave 
+    // unfinished heartbeats
+    struct timespec endTime;
+    unsigned int tid, i;
+    double duration, avg;
+    if (clock_gettime(CLOCK_REALTIME, &endTime) == -1) {
+        if (allowStderr)
+            perror("AppEKG: clock gettime error");
+        return;
+    }
+    // subtract off program start time seconds (skip nanosec)
+    endTime.tv_sec -= programStartTime.tv_sec;
+    // convert secs to microsecond, see comment in beginHB
+    unsigned long endHBTime =
+          ((1000000 * endTime.tv_sec) + (endTime.tv_nsec / 1000));
+
+    for (tid = 0; tid < EKG_MAX_THREADS; tid++) {
+        //fprintf(csvFH,"Thread %d\n",tid);
+        // new: if no thread is registered in this slot, continue,
+        // else create and print a data record regardless of whether
+        // it is all zeroes or not
+        if (_ekgActualThreadID[tid] == 0)
+            continue;
+        for (i = 1; i <= numHeartbeats; i++) {
+            if (beginHBTime[tid][i] > 0) {
+                unsigned int hbid = (i-1)*2+1;
+                duration = (endHBTime - beginHBTime[tid][i]);
+                if (threadMetrics[tid][hbid].v.u64val > 0) {
+                    // too much arithmetic for high-intensity heartbeats, this
+                    // could be simplified if we just kept the duration sum
+                    avg = ((threadMetrics[tid][hbid + 1].v.dpval *
+                                  (threadMetrics[tid][hbid].v.u64val) +
+                            duration) /
+                           (threadMetrics[tid][hbid].v.u64val + 1));
+                    threadMetrics[tid][hbid + 1].v.dpval = avg;
+                    threadMetrics[tid][hbid].v.u64val++;
+                } else {
+                    threadMetrics[tid][hbid + 1].v.dpval = duration;
+                    threadMetrics[tid][hbid].v.u64val++;
+                }
+            }
+        }
+    }
+    // JEC END checking for unfinished heartbeats
     outputHeartbeatData();
     if (ekgOutputMode == DO_CSV_FILES) {
         fclose(csvFH);
