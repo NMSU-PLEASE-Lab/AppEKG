@@ -1,0 +1,450 @@
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/openmp/main.c miniAMR.ekg/openmp/main.c
+--- miniAMR.clean/openmp/main.c	2023-10-11 13:14:35.602324483 -0400
++++ miniAMR.ekg/openmp/main.c	2023-10-11 13:20:53.233516000 -0400
+@@ -35,6 +35,10 @@
+ #include "timer.h"
+ #include "proto.h"
+ 
++#if defined APPEKG
++#include <appekg.h>
++#endif
++
+ int main(int argc, char** argv)
+ {
+    int i, ierr, object_num;
+@@ -48,6 +52,17 @@
+    ierr = MPI_Comm_rank(MPI_COMM_WORLD, &my_pe);
+    ierr = MPI_Comm_size(MPI_COMM_WORLD, &num_pes);
+ 
++#if defined APPEKG
++   int appekg_myrank;
++   MPI_Comm_rank(MPI_COMM_WORLD, &appekg_myrank);
++   EKG_INITIALIZE(5, 1, 2, 0, appekg_myrank, 1);
++   EKG_NAME_HEARTBEAT(1,"AllocateBlock");
++   EKG_NAME_HEARTBEAT(2,"TimestepStage");
++   EKG_NAME_HEARTBEAT(3,"RefineStep");
++   EKG_NAME_HEARTBEAT(4,"DeallocateBlock");
++   EKG_NAME_HEARTBEAT(5,"CheckObjects");
++#endif
++
+    t1 = timer();
+    counter_malloc = 0;
+    size_malloc = 0.0;
+@@ -365,6 +380,9 @@
+    MPI_Barrier(MPI_COMM_WORLD);
+ 
+    MPI_Finalize();
++#if defined APPEKG
++   EKG_FINALIZE();
++#endif
+ 
+    exit(0);
+ }
+@@ -438,6 +456,9 @@
+                                 __FILE__, __LINE__);
+ 
+    for (n = 0; n < max_num_blocks; n++) {
++#ifdef APPEKG
++      EKG_BEGIN_HEARTBEAT(1,100);
++#endif
+       blocks[n].number = -1;
+       blocks[n].array = (double ****) ma_malloc(num_vars*sizeof(double ***),
+                                                 __FILE__, __LINE__);
+@@ -455,6 +476,9 @@
+                                                __FILE__, __LINE__);
+          }
+       }
++#ifdef APPEKG
++      EKG_END_HEARTBEAT(1);
++#endif
+    }
+ 
+    sorted_list = (sorted_block *)ma_malloc(max_num_blocks*sizeof(sorted_block),
+@@ -619,6 +643,9 @@
+    int i, j, m, n;
+ 
+    for (n = 0; n < max_num_blocks; n++) {
++#ifdef APPEKG
++      EKG_BEGIN_HEARTBEAT(4,25);
++#endif
+       for (m = 0; m < num_vars; m++) {
+          for (i = 0; i < x_block_size+2; i++) {
+             for (j = 0; j < y_block_size+2; j++)
+@@ -628,6 +655,9 @@
+          free(blocks[n].array[m]);
+       }
+       free(blocks[n].array);
++#ifdef APPEKG
++      EKG_END_HEARTBEAT(4);
++#endif
+    }
+    free(blocks);
+ 
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/openmp/Makefile miniAMR.ekg/openmp/Makefile
+--- miniAMR.clean/openmp/Makefile	2023-10-11 13:14:35.584297000 -0400
++++ miniAMR.ekg/openmp/Makefile	2023-10-11 13:53:01.283851000 -0400
+@@ -5,20 +5,35 @@
+ LDFLAGS =
+ LDLIBS = -lm -lgomp
+ 
+-EXEC = miniAMR.x
++#-----------------------------------------------------------------------
++# APPEKG Section
++# JEC: choose to build with APPEKG or not, and specify where
++#      to find APPEKG stuff
++APPEKGDIR = /anvil/projects/x-cis230165/tools/ghappekg/
++DO_APPEKG = ON
++
++ifeq ($(DO_APPEKG),ON)
++APPEKGCFLAGS = -DAPPEKG -I${APPEKGDIR}
++APPEKGLDOBJ = -L${APPEKGDIR} -lappekg -lpthread -lrt
++else
++APPEKGCFLAGS =
++APPEKGLDOBJ =
++endif
++
++EXEC = miniAMRomp.x
+ 
+ OBJS = block.o check_sum.o comm_block.o comm.o comm_parent.o comm_refine.o \
+        comm_util.o driver.o init.o main.o move.o pack.o plot.o profile.o \
+        rcb.o refine.o sfc.o stencil.o util.o
+ 
+ $(EXEC): $(OBJS)
+-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
++	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(APPEKGLDOBJ)
+ 
+ .c.o:
+-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
++	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEKGCFLAGS) -c $<
+ 
+ clean:
+-	rm *.o miniAMR.x
++	rm *.o *.x
+ 
+ # need dependencies
+ 
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/openmp/move.c miniAMR.ekg/openmp/move.c
+--- miniAMR.clean/openmp/move.c	2023-10-11 13:14:35.603088307 -0400
++++ miniAMR.ekg/openmp/move.c	2023-10-11 13:21:17.325502000 -0400
+@@ -32,6 +32,10 @@
+ #include "comm.h"
+ #include "proto.h"
+ 
++#if defined APPEKG
++#include <appekg.h>
++#endif
++
+ // This routine moves the objects that determine the refinement and checks
+ // the blocks against those objects to determine which blocks will refine.
+ void move(double delta)
+@@ -76,6 +80,9 @@
+    #pragma omp parallel for shared(sorted_index, num_refine, blocks, sorted_list, p2, mesh_size, refine_ghost, x_block_size, y_block_size, z_block_size, my_pe, parents)
+    for(int in = 0; in < sorted_index[num_refine+1]; in++) {
+       double cor[3][2]; /* extent of block */
++#ifdef APPEKG
++      EKG_BEGIN_HEARTBEAT(5,20);
++#endif
+       block* bp = &blocks[sorted_list[in].n];
+       int sz = p2[num_refine - bp->level]; /* half size of block */
+       cor[0][0] = ((double) (bp->cen[0] - sz))/((double) mesh_size[0]);
+@@ -135,6 +142,9 @@
+       /* if 0 level, we can not unrefine */
+       if (!bp->level && bp->refine == -1)
+          bp->refine = 0;
++#ifdef APPEKG
++      EKG_END_HEARTBEAT(5);
++#endif
+    }
+ }
+ 
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/openmp/refine.c miniAMR.ekg/openmp/refine.c
+--- miniAMR.clean/openmp/refine.c	2023-10-11 13:14:35.607503648 -0400
++++ miniAMR.ekg/openmp/refine.c	2023-10-11 13:21:34.287576000 -0400
+@@ -33,6 +33,10 @@
+ #include "proto.h"
+ #include "timer.h"
+ 
++#if defined APPEKG
++#include <appekg.h>
++#endif
++
+ // This file contains routines that determine which blocks are going to
+ // be refined and which are going to be coarsened.
+ void refine(int ts)
+@@ -59,6 +63,9 @@
+       num_refine_step = num_refine;
+ 
+    for (i = 0; i < num_refine_step; i++) {
++#ifdef APPEKG
++      EKG_BEGIN_HEARTBEAT(3,100);
++#endif
+       for (j = num_refine; j >= 0; j--)
+          if (num_blocks[j]) {
+             cur_max_level = j;
+@@ -165,6 +172,9 @@
+             t4 += timer() - t2;
+          }
+       }
++#ifdef APPEKG
++      EKG_END_HEARTBEAT(3);
++#endif
+    }
+    timer_rs_pa += tp1;
+    timer_rs_mv += tm1;
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/openmp/stencil.c miniAMR.ekg/openmp/stencil.c
+--- miniAMR.clean/openmp/stencil.c	2023-10-11 13:14:35.608915910 -0400
++++ miniAMR.ekg/openmp/stencil.c	2023-10-11 13:27:30.263201086 -0400
+@@ -31,6 +31,10 @@
+ #include "comm.h"
+ #include "proto.h"
+ 
++#if defined APPEKG
++#include <appekg.h>
++#endif
++
+ void stencil_calc(int, int);
+ void stencil_0(int);
+ void stencil_x(int);
+@@ -78,11 +82,13 @@
+ void stencil_calc(int var, int stencil_in)
+ {
+    int i, j, k;
+-
+    if (stencil_in == 7) {
+       // Parallelize
+       #pragma omp parallel for shared(sorted_index, num_refine, blocks, sorted_list, x_block_size, y_block_size, z_block_size)
+       for(int in = 0; in < sorted_index[num_refine+1]; in++) {
++#if defined APPEKG
++         EKG_BEGIN_HEARTBEAT(2,1000);
++#endif
+          block* bp = &blocks[sorted_list[in].n];
+          double work[x_block_size+2][y_block_size+2][z_block_size+2];
+          for (i = 1; i <= x_block_size; i++)
+@@ -99,6 +105,9 @@
+             for (j = 1; j <= y_block_size; j++)
+                for (k = 1; k <= z_block_size; k++)
+                   bp->array[var][i][j][k] = work[i][j][k];
++#if defined APPEKG
++         EKG_END_HEARTBEAT(2);
++#endif
+       }
+       total_fp_divs += (double) num_active*num_cells;
+       total_fp_adds += (double) 6*num_active*num_cells;
+@@ -106,6 +115,9 @@
+       // Parallelize
+       #pragma omp parallel for shared(sorted_index, num_refine, blocks, sorted_list, x_block_size, y_block_size, z_block_size)
+       for(int in = 0; in < sorted_index[num_refine+1]; in++) {
++#if defined APPEKG 
++         EKG_BEGIN_HEARTBEAT(2,1000);
++#endif
+          block* bp = &blocks[sorted_list[in].n];
+          double sb, sm, sf, work[x_block_size+2][y_block_size+2][z_block_size+2];
+          for (i = 1; i <= x_block_size; i++)
+@@ -144,6 +156,9 @@
+             for (j = 1; j <= y_block_size; j++)
+                for (k = 1; k <= z_block_size; k++)
+                   bp->array[var][i][j][k] = work[i][j][k];
++#if defined APPEKG
++         EKG_END_HEARTBEAT(2);
++#endif
+       }
+       total_fp_divs += (double) num_active*num_cells;
+       total_fp_adds += (double) 26*num_active*num_cells;
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/ref/main.c miniAMR.ekg/ref/main.c
+--- miniAMR.clean/ref/main.c	2023-10-11 13:14:35.618311582 -0400
++++ miniAMR.ekg/ref/main.c	2023-10-11 13:30:27.731265000 -0400
+@@ -35,6 +35,10 @@
+ #include "timer.h"
+ #include "proto.h"
+ 
++#if defined APPEKG
++#include <appekg.h>
++#endif
++
+ int main(int argc, char** argv)
+ {
+    int i, ierr, object_num;
+@@ -46,7 +50,15 @@
+    ierr = MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_ARE_FATAL);
+    ierr = MPI_Comm_rank(MPI_COMM_WORLD, &my_pe);
+    ierr = MPI_Comm_size(MPI_COMM_WORLD, &num_pes);
+-
++ #if defined APPEKG
++   int appekg_myrank;
++   MPI_Comm_rank(MPI_COMM_WORLD, &appekg_myrank);
++   EKG_INITIALIZE(4, 1, 2, 0, appekg_myrank, 1);
++   EKG_NAME_HEARTBEAT(1,"AllocateBlock");
++   EKG_NAME_HEARTBEAT(2,"TimestepStage");
++   EKG_NAME_HEARTBEAT(3,"RefineStep");
++   EKG_NAME_HEARTBEAT(4,"DeallocateBlock");
++#endif
+    t1 = timer();
+    counter_malloc = 0;
+    size_malloc = 0.0;
+@@ -357,7 +369,9 @@
+    MPI_Barrier(MPI_COMM_WORLD);
+ 
+    MPI_Finalize();
+-
++#if defined APPEKG
++   EKG_FINALIZE();
++#endif
+    exit(0);
+ }
+ 
+@@ -430,6 +444,11 @@
+                                 __FILE__, __LINE__);
+ 
+    for (n = 0; n < max_num_blocks; n++) {
++ 
++ #ifdef APPEKG
++      EKG_BEGIN_HEARTBEAT(1,70);
++#endif     	   
++
+       blocks[n].number = -1;
+       blocks[n].array = (double ****) ma_malloc(num_vars*sizeof(double ***),
+                                                 __FILE__, __LINE__);
+@@ -447,6 +466,11 @@
+                                                __FILE__, __LINE__);
+          }
+       }
++
++ #ifdef APPEKG
++    EKG_END_HEARTBEAT(1);
++#endif      
++
+    }
+ 
+    sorted_list = (sorted_block *)ma_malloc(max_num_blocks*sizeof(sorted_block),
+@@ -611,6 +635,9 @@
+    int i, j, m, n;
+ 
+    for (n = 0; n < max_num_blocks; n++) {
++#ifdef APPEKG
++       EKG_BEGIN_HEARTBEAT(4,25);
++#endif
+       for (m = 0; m < num_vars; m++) {
+          for (i = 0; i < x_block_size+2; i++) {
+             for (j = 0; j < y_block_size+2; j++)
+@@ -620,6 +647,10 @@
+          free(blocks[n].array[m]);
+       }
+       free(blocks[n].array);
++#ifdef APPEKG
++      EKG_END_HEARTBEAT(4);
++#endif   
++   
+    }
+    free(blocks);
+ 
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/ref/Makefile miniAMR.ekg/ref/Makefile
+--- miniAMR.clean/ref/Makefile	2023-10-11 13:14:35.610920000 -0400
++++ miniAMR.ekg/ref/Makefile	2023-10-11 13:33:59.819594000 -0400
+@@ -5,6 +5,21 @@
+ LDFLAGS =
+ LDLIBS = -lm
+ 
++#-----------------------------------------------------------------------
++# APPEKG Section
++# JEC: choose to build with APPEKG or not, and specify where
++#      to find APPEKG stuff
++APPEKGDIR = /anvil/projects/x-cis230165/tools/ghappekg/
++DO_APPEKG = ON
++
++ifeq ($(DO_APPEKG),ON)
++APPEKGCFLAGS = -DAPPEKG -I${APPEKGDIR}
++APPEKGLDOBJ = -L${APPEKGDIR} -lappekg -lpthread -lrt -lgomp
++else
++APPEKGCFLAGS =
++APPEKGLDOBJ =
++endif
++
+ EXEC = miniAMR.x
+ 
+ OBJS = block.o check_sum.o comm_block.o comm.o comm_parent.o comm_refine.o \
+@@ -12,10 +27,10 @@
+        rcb.o refine.o sfc.o stencil.o util.o
+ 
+ $(EXEC): $(OBJS)
+-	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
++	$(LD) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(APPEKGLDOBJ)
+ 
+ .c.o:
+-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $<
++	$(CC) $(CPPFLAGS) $(CFLAGS) $(APPEKGCFLAGS) -c $<
+ 
+ clean:
+ 	rm *.o miniAMR.x
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/ref/refine.c miniAMR.ekg/ref/refine.c
+--- miniAMR.clean/ref/refine.c	2023-10-11 13:14:35.627205301 -0400
++++ miniAMR.ekg/ref/refine.c	2023-10-11 13:29:24.059559000 -0400
+@@ -33,6 +33,10 @@
+ #include "proto.h"
+ #include "timer.h"
+ 
++#if defined APPEKG
++#include <appekg.h>
++#endif
++
+ // This file contains routines that determine which blocks are going to
+ // be refined and which are going to be coarsened.
+ void refine(int ts)
+@@ -59,6 +63,9 @@
+       num_refine_step = num_refine;
+ 
+    for (i = 0; i < num_refine_step; i++) {
++#ifdef APPEKG
++      EKG_BEGIN_HEARTBEAT(3,1);
++#endif
+       for (j = num_refine; j >= 0; j--)
+          if (num_blocks[j]) {
+             cur_max_level = j;
+@@ -165,6 +172,10 @@
+             t4 += timer() - t2;
+          }
+       }
++#ifdef APPEKG
++      EKG_END_HEARTBEAT(3);
++#endif   
++   
+    }
+    timer_rs_pa += tp1;
+    timer_rs_mv += tm1;
+diff -Naru -x '*.[oxa]' -x .git -x st.c miniAMR.clean/ref/stencil.c miniAMR.ekg/ref/stencil.c
+--- miniAMR.clean/ref/stencil.c	2023-10-11 13:14:35.628246206 -0400
++++ miniAMR.ekg/ref/stencil.c	2023-10-11 13:29:34.254131000 -0400
+@@ -30,6 +30,11 @@
+ #include "block.h"
+ #include "comm.h"
+ #include "proto.h"
++
++#if defined APPEKG
++#include <appekg.h>
++#endif
++
+ void stencil_calc(int, int);
+ void stencil_0(int);
+ void stencil_x(int);
+@@ -75,6 +80,11 @@
+ 
+ void stencil_calc(int var, int stencil_in)
+ {
++
++#if defined APPEKG
++    EKG_BEGIN_HEARTBEAT(2,40);
++#endif
++	 
+    int i, j, k, in;
+    double sb, sm, sf, work[x_block_size+2][y_block_size+2][z_block_size+2];
+    block *bp;
+@@ -142,6 +152,10 @@
+       total_fp_divs += (double) num_active*num_cells;
+       total_fp_adds += (double) 26*num_active*num_cells;
+    }
++
++#if defined APPEKG
++   EKG_END_HEARTBEAT(2);
++#endif
+ }
+ 
+ void stencil_0(int var)
