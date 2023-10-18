@@ -1,4 +1,4 @@
-# AppEKG Patches for Some Applications
+## AppEKG Patches for Some Applications
 
 This folder contains patch files that will add AppEKG instrumentation
 to applications that we have worked with. The patch files will contain
@@ -16,5 +16,14 @@ go ahead and patch it.
 Patch file names contain the short commit hash that the patch file
 was created on.
 
-JEC note: Current miniAMR patch is only for the openmp version; we need
-to change this to include patches for the reference (mpi only) version.
+Creating a patch file can be done using:
+~~~
+diff -Naru orig-app-dir ekginst-app-dir
+~~~
+If there are files to ignore, use "-x pattern" to ignore files.
+
+### Notes
+
+Need to check miniAMR patch to ensure the ref version has the correct
+heartbeats and rate factors.
+
