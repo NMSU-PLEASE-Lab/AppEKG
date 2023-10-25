@@ -986,10 +986,10 @@ static void finalizeHeartbeatData(void* arg)
 {
     if (appekgStatus != APPEKG_STAT_OK)
         return;
-
-    // JEC: Should we try to check for any unfinished heartbeats and
-    // then end them forcefully? It seems like some threads leave 
-    // unfinished heartbeats
+#ifdef EKG_DO_UNFINISHED_HBS
+    // JEC: We check for any unfinished heartbeats and then
+    // end them forcefully. It seems like some threads may leave 
+    // unfinished heartbeats; compile this in by #defining var
     struct timespec endTime;
     unsigned int tid, i;
     double duration, avg;
@@ -1032,6 +1032,7 @@ static void finalizeHeartbeatData(void* arg)
         }
     }
     // JEC END checking for unfinished heartbeats
+#endif
     outputHeartbeatData();
     if (ekgOutputMode == DO_CSV_FILES) {
         fclose(csvFH);

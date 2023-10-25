@@ -101,6 +101,10 @@ extern "C" {
 // determining thread IDs, uncomment to use OpenMP functions
 //#define EKG_USE_OPENMP (now in Makefile, do not uncomment this)
 
+// uncomment this to allow AppEKG to finalize and output any
+// heartbeats that were begun but never ended
+//#define EKG_DO_UNFINISHED_HBS
+
 // Thread ID note: we use a function pointer _ekgThreadId() that
 // is set to reference either pthread_self() or omp_get_thread_num().
 // In the macros, the thread id is "+1" because OpenMP threads IDs
