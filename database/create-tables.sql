@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS Heartbeat (
    id INTEGER,
    name TEXT,
    app_id INTEGER,
-   PRIMARY KEY(id),
+   PRIMARY KEY(id),  /* JEC: must be id+app_id */
    FOREIGN KEY(app_id) REFERENCES Application
 );
 
