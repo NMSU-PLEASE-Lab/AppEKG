@@ -2,31 +2,32 @@
 APPEKGDIR = ..
 
 # on Mac, -Xclang may be needed
+CC = gcc
 CFLAGS = -I${APPEKGDIR} -Wall -fopenmp
-LDOBJS = -L${APPEKGDIR} -lappekg -lpthread 
+LDFLAGS = -L${APPEKGDIR} -lappekg -lpthread 
 
-all: binary hello evensum
+all: hello binary binlinear binlinthread evensum dynamichb threadtest
 
-hello: HelloWorld.o
-	gcc -o $@ $< ${LDOBJS} 
+hello: HelloWorld.c
+	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
 
-binary: BinarySearch.o
-	gcc -o $@ $< ${LDOBJS} 
+binary: BinarySearch.c
+	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
 
-binary_linear: BinaryVsLinear.o
-	gcc -o $@ $< ${LDOBJS}
+binlinear: BinaryVsLinear.c
+	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
 
-binary_linear_multithread: BinaryVsLinearMultithreading.o
-	gcc -o $@ $< ${LDOBJS}
+binlinthread: BinaryVsLinearMultithreading.c
+	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
 
-evensum: EvenNumbersSum.o
-	gcc -fopenmp -o $@ $< ${LDOBJS}
+evensum: EvenNumbersSum.c
+	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
 
-dynamic_hb: DynamicHBGenerator.o
-	gcc -o $@ $< ${LDOBJS}
+dynamichb: DynamicHBGenerator.c
+	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
 
 threadtest: threadtest.c
-	gcc -o $@ -fopenmp -Wall threadtest.c
+	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
 
 clean:
-	rm -f *.o hello binary binary_linear binary_linear_multithread evensum dynamic_hb threadtest
+	rm -f *.o hello binary binlinear binlinthread evensum dynamichb threadtest
