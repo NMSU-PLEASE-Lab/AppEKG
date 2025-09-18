@@ -1,21 +1,31 @@
 /*
+AppEKG database definition
 
 To create and/or connect to database, run:
-$ sqlite3 appekg.db
+$ sqlite3 appekg.db3
 
 After connected to database, run this command to create all tables:
 $ .read create-tables.sql
 
 Alternatively, use command 
-$ sqlite3 appekgdb.db ".read insert_data.sql" 
+$ sqlite3 appekgdb.db3 ".read insert_data.sql" 
 to run the script without connecting to database
-
+      OR
+$ sqlite3 -init create-tables.sql appekg.db3
 */
 
 CREATE TABLE IF NOT EXISTS Application (
    id INTEGER PRIMARY KEY NOT NULL,
    name TEXT,
    version TEXT
+);
+
+CREATE TABLE IF NOT EXISTS Heartbeat (
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
+   app_id INTEGER,
+   apphb_id INTEGER,
+   name TEXT,
+   FOREIGN KEY(app_id) REFERENCES Application
 );
 
 CREATE TABLE IF NOT EXISTS Job (
@@ -42,18 +52,10 @@ CREATE TABLE IF NOT EXISTS Process (
 
 CREATE TABLE IF NOT EXISTS EKGSample (
    id INTEGER PRIMARY KEY AUTOINCREMENT,
-   time INTEGER,
+   time_msec INTEGER,
    thread_id INTEGER,
    process_id INTEGER,
    FOREIGN KEY(process_id) REFERENCES Process
-);
-
-CREATE TABLE IF NOT EXISTS Heartbeat (
-   id INTEGER,
-   name TEXT,
-   app_id INTEGER,
-   PRIMARY KEY(id),  /* JEC: must be id+app_id */
-   FOREIGN KEY(app_id) REFERENCES Application
 );
 
 CREATE TABLE IF NOT EXISTS HBSample (

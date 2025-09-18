@@ -3,7 +3,8 @@
 * \brief AppEKG Implementation
 * 
 * This current implementation supports two modes: storing data into 
-* CSV files or using LDMS Streams to collect data.
+* CSV files or using LDMS Streams to collect data. Working to add
+* SQLite3 support.
 *
 * Environment variables -- see appekg.h header comment
 *  
@@ -26,11 +27,10 @@
 #define EKG_EXTERN
 #include "appekg.h"
 
-#ifdef INCLUDE_LDMS_STREAMS
+#ifdef INCLUDE_LDMS
 #include "ldms/ldms_appstreams.h"
 #endif
 
-#define MAX_CSV_STRLEN 1024
 #define MAX_JSON_STRLEN 2048
 #define FILENAME_PREFIX "appekg"
 
@@ -62,11 +62,15 @@ static enum {
 // compilation; still need to create an output selection mode (and
 // may need to move this into appekg.h for macro availability)
 static enum {
-    DO_CSV_FILES = 0,
-#ifdef INCLUDE_LDMS_STREAMS
+    DO_NO_OUTPUT = 0,
+    DO_CSV_FILES,
+#ifdef INCLUDE_LDMS
     DO_LDMS_STREAMS,
 #endif
-    DO_NO_OUTPUT
+#ifdef INCLUDE_SQLITE
+    DO_SQLITE,
+#endif
+    DO_UKN_OUTPUT
 } ekgOutputMode = DO_CSV_FILES;
 
 // Metadata generic metric structure; this is left over from
@@ -111,7 +115,7 @@ static int metricCount = 0; /* number of metrics */
 /* begin time for hbeats, per thread and per heartbeat, in microseconds */
 static unsigned long beginHBTime[EKG_MAX_THREADS][EKG_MAX_HEARTBEATS] = {0};
 static int numHeartbeats = 0; /* number of hbeats */
-static char** hbNames;        // heartbeat names
+static char** hbNames;        // heartbeat names (used indices start at 1)
 
 // thread id for the appekg sampling thread
 static pthread_t tid = 0;
@@ -125,6 +129,19 @@ static pthread_mutex_t hblock;
 static struct timespec programStartTime;
 static unsigned int applicationID, jobID;
 static char jsonFilename[1024];
+static int numProcs = 1;
+static int numNodes = 1;
+static int userID;
+static int rankID;
+static int nodeID;
+
+//
+// We include the supporting source files here so that the shared data
+// and functions can remain static and not show up in the library symbols
+//
+#include "csvoutput.c"
+#include "ldmsoutput.c"
+#include "sqliteoutput.c"
 
 /**
  * \brief Initialize AppEKG
@@ -154,6 +171,7 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
     }
     allowStderr = !silent;
     applicationID = appid;
+    rankID = rank;
 
     clock_gettime(CLOCK_REALTIME, &programStartTime);
 
@@ -181,7 +199,8 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
                                         EKG_MAX_HEARTBEATS * (EKG_MAX_THREADS+1));
     _ekgActualThreadID =
           (unsigned int*)calloc(sizeof(unsigned int), EKG_MAX_THREADS+1);
-    _ekgThreadId = THREAD_ID_FUNC; 
+    // TODO: make sure that the casting below is safe; I think it is
+    _ekgThreadId = (long unsigned int (*)(void)) THREAD_ID_FUNC; 
 
     // Set up job id if needed: JEC - I changed this to override the
     // initialization argument rather than defer to it.
@@ -204,12 +223,32 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
     if (gethostname(hostname, sizeof(hostname)) == 0) {
         char* idp = strpbrk(hostname, "0123456789");
         if (idp)
-            cid = (int)strtol(idp, 0, 10);
+            nodeID = cid = (int)strtol(idp, 0, 10);
     }
+    // try to get number of nodes from job scheduler
+    char* ns = getenv("PBS_NUM_NODES");
+    if (ns)
+        numNodes = (int)strtol(ns, 0, 10);
+    else {
+        ns = getenv("SLURM_JOB_NUM_NODES");
+        if (ns)
+            numNodes = (int)strtol(ns, 0, 10);
+    }
+    // try to get number of processes (ranks) from job scheduler
+    char* ps = getenv("PBS_NP");
+    if (ps)
+        numProcs = (int)strtol(ps, 0, 10);
+    else {
+        ps = getenv("SLURM_NTASKS");
+        if (ps)
+            numProcs = (int)strtol(ps, 0, 10);
+    }
+    // get user id
+    userID = getuid();
 
     // initialize base metrics
+    baseCount = 0;
     baseMetrics[baseCount].name = "timemsec";
-    baseMetrics[baseCount].type = UINT64;
     baseMetrics[baseCount].type = UINT64;
     baseMetrics[baseCount++].v.i64val = 0;
     baseMetrics[baseCount].name = "component";
@@ -249,6 +288,22 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
         threadMetrics[0][metricCount++].type = DOUBLE;
     }
     appekgStatus = APPEKG_STAT_OK;
+    // decide and initialize output mode
+    char* es = getenv("APPEKG_OUTPUT_MODE");
+    if (!es || !strcmp("CSV",es)) {
+        ekgOutputMode = DO_CSV_FILES;
+        initializeCSVOutput();
+#ifdef INCLUDE_LDMS
+    } else if (!strcmp("LDMS",es)) {
+        ekgOutputMode = DO_LDMS_STREAMS;
+        initializeLDMSOutput();
+#endif
+#ifdef INCLUDE_SQLITE
+    } else if (!strcmp("SQLITE",es)) {
+        ekgOutputMode = DO_SQLITE;
+        initializeSQLiteOutput();
+#endif
+    }
     // start up sampling thread
     doSampling = 1;
     pthread_mutex_unlock(&hblock);
@@ -468,77 +523,6 @@ char* ekgNameOfHeartbeat(unsigned int id)
     return strdup(hbNames[id]);
 }
 
-#ifdef INCLUDE_LDMS_STREAMS
-/**
-* \brief Output hearbeat datapoint LDMS stream (broken!)
-*
-* This needs completely redone for threaded data. Currently not used.
-**/
-static void outputLDMSStreamsData()
-{
-    char str[MAX_JSON_STRLEN]; // DANGEROUS! Use snprintf!
-    int j = 0;
-    if (appekgStatus != APPEKG_STAT_OK)
-        return;
-    j += sprintf(&str[j], "%s", "{");
-    for (i = 0; i < metricCount; i++) {
-        if (i > 0)
-            j += sprintf(&str[j], ", ");
-        switch (metrics[i].type) {
-        case UINT8:
-            j += sprintf(&str[j], " \"%s\":%u, ", metrics[i].name,
-                         metrics[i].v.u8val);
-            break;
-        case UINT16:
-            j += sprintf(&str[j], "\"%s\":%u", metrics[i].name,
-                         metrics[i].v.u16val);
-            break;
-        case UINT32:
-            j += sprintf(&str[j], "\"%s\":%u", metrics[i].name,
-                         metrics[i].v.u32val);
-            break;
-        case UINT64:
-            j += sprintf(&str[j], "\"%s\":%lu", metrics[i].name,
-                         metrics[i].v.u64val);
-            break;
-        case INT8:
-            j += sprintf(&str[j], "\"%s\":%d", metrics[i].name,
-                         metrics[i].v.i8val);
-            break;
-        case INT16:
-            j += sprintf(&str[j], "\"%s\":%d", metrics[i].name,
-                         metrics[i].v.i16val);
-            break;
-        case INT32:
-            j += sprintf(&str[j], "\"%s\":%d", metrics[i].name,
-                         metrics[i].v.i32val);
-            break;
-        case INT64:
-            j += sprintf(&str[j], "\"%s\":%ld", metrics[i].name,
-                         metrics[i].v.i64val);
-            break;
-        case FLOAT:
-            j += sprintf(&str[j], "\"%s\":%g", metrics[i].name,
-                         metrics[i].v.fpval);
-            break;
-        case DOUBLE:
-            j += sprintf(&str[j], "\"%s\":%g", metrics[i].name,
-                         metrics[i].v.dpval);
-            break;
-        case STRING:
-            j += sprintf(&str[j], "\"%s\":\"%s\"", metrics[i].name,
-                         metrics[i].v.strval);
-            break;
-        default:
-            j += sprintf(&str[j], "\"%s\":\"%s\"", metrics[i].name, "0");
-            break;
-        }
-    }
-    j += sprintf(&str[j], "%s", "}");
-    ldms_appinst_publish(str);
-}
-#endif // INCLUDE_LDMS_STREAMS
-
 /**
 * \brief Write Metadata out in JSON format
 *
@@ -641,30 +625,8 @@ static char* metadataToJSON()
                         ",\n\"osversion\":\"%s\"", unameInfo.version);
     tstrlen += snprintf(tdatastr + tstrlen, sizeof(tdatastr) - tstrlen - 1,
                         ",\n\"architecture\":\"%s\"", unameInfo.machine);
-    // try to get number of nodes from job scheduler
-    char* ns = getenv("PBS_NUM_NODES");
-    int numnodes = 0;
-    if (ns)
-        numnodes = (int)strtol(ns, 0, 10);
-    else {
-        ns = getenv("SLURM_JOB_NUM_NODES");
-        if (ns)
-            numnodes = (int)strtol(ns, 0, 10);
-    }
     tstrlen += snprintf(tdatastr + tstrlen, sizeof(tdatastr) - tstrlen - 1,
-                        ",\n\"numnodes\":%d", numnodes);
-    // try to get number of processes (ranks) from job scheduler
-    char* ps = getenv("PBS_NP");
-    int numprocs = 0;
-    if (ps)
-        numprocs = (int)strtol(ps, 0, 10);
-    else {
-        ps = getenv("SLURM_NTASKS");
-        if (ps)
-            numprocs = (int)strtol(ps, 0, 10);
-    }
-    tstrlen += snprintf(tdatastr + tstrlen, sizeof(tdatastr) - tstrlen - 1,
-                        ",\n\"numprocs\":%d", numprocs);
+                        ",\n\"numprocs\":%d", numProcs);
     // heartbeat names are put in an array
     tstrlen += snprintf(tdatastr + tstrlen, sizeof(tdatastr) - tstrlen - 1,
                         ",\n\"hbnames\":{");
@@ -681,271 +643,6 @@ static char* metadataToJSON()
     tstrlen += snprintf(tdatastr + tstrlen, sizeof(tdatastr) - tstrlen - 1,
                         "}\n}\n");
     return tdatastr;
-}
-
-/**
-* \brief Output headers of CSV data files
-*
-* TODO: this also creates the metadata file (at the end), and so
-* this routine probably should be renamed, and/or refactored
-**/
-static void writeCSVHeaders()
-{
-    int i;
-    char* s;
-    char fullFilename[1024], pathFormat[800];
-    FILE* mf;
-    if (appekgStatus != APPEKG_STAT_OK)
-        return;
-    // build output data path
-    strcpy(fullFilename, ".");
-    s = getenv("APPEKG_OUTPUT_PATH");
-    if (s) {
-        strncpy(pathFormat, s, sizeof(pathFormat));
-        pathFormat[sizeof(pathFormat) - 1] = '\0';
-        // convert any %s formats into ss, for security
-        s = pathFormat;
-        while ((s = strstr(s, "%s")) != NULL) {
-            *(s + 1) = 'd';
-            s++;
-        }
-        // count # of %s in format; use it if two or less
-        s = pathFormat;
-        i = 0;
-        while ((s = index(s, '%')) != NULL) {
-            i++;
-            s++;
-        }
-        if (i <= 2)
-            snprintf(fullFilename, sizeof(fullFilename), pathFormat,
-                     applicationID, jobID);
-        else
-            strcpy(fullFilename, pathFormat);
-    }
-    // copy path prefix back to pathFormat to use twice
-    strcpy(pathFormat, fullFilename);
-    // try mkdir just in case; this could create the "jobID" directory
-    // if it is last and the format specified it
-    mkdir(pathFormat, 0770);
-    // name each rank's data file with PID
-    sprintf(fullFilename, "%s/%s-%d.csv", pathFormat, FILENAME_PREFIX,
-            getpid());
-    csvFH = fopen(fullFilename, "w");
-    if (!csvFH) {
-        // try to put data files in current directory
-        strcpy(pathFormat, ".");
-        sprintf(fullFilename, "%s/%s-%d.csv", pathFormat, FILENAME_PREFIX,
-                getpid());
-        csvFH = fopen(fullFilename, "w");
-    }
-    if (!csvFH) {
-        if (allowStderr)
-            fprintf(stderr, "AppEKG: cannot open data file...disabling");
-        appekgStatus = APPEKG_STAT_DISABLED;
-        return;
-    }
-    // write out column headers (CHANGED: only output first one (time)
-    // when we finalize this, we can remove the loop
-    for (i = 0; i < baseCount; i++) {
-        if (i > 0)
-            break; // stop after time (was fprintf(csvFH,",");)
-        fprintf(csvFH, "%s", baseMetrics[i].name);
-    }
-    // heartbeats have two metrics each, count and duration, and start at 1
-    for (i = 0; i < metricCount; i++) {
-        fprintf(csvFH, ",");
-        // decision: don't print HB custom names in CSV header
-        // - can remove this code when this is a final decision
-        //if (i>0 && hbNames[(i-1)/2+1] != 0)
-        //   fprintf(csvFH,"%s-%s",threadMetrics[0][i].name,hbNames[(i-1)/2+1]);
-        //else
-        fprintf(csvFH, "%s", threadMetrics[0][i].name);
-    }
-    fprintf(csvFH, "\n");
-    sprintf(jsonFilename, "%s/%s-%d.json", pathFormat, FILENAME_PREFIX,
-            getpid());
-    mf = fopen(jsonFilename, "w");
-    fputs(metadataToJSON(), mf);
-    fclose(mf);
-}
-
-/**
-* \brief Output heartbeat datapoint to CSV file
-*
-* This routine collects all heartbeat data per thread into a
-* single string of CSV data, then chooses to output it or not,
-* depending on whether all threads had 0 data or not. DONE: this
-* needs some thinking, we might rather identify the "active" threads
-* first, then always output data lines for the active threads, whether
-* any heartbeats were non-zero or not.
-**/
-static void outputCSVData()
-{
-    int i, tstrlen = 0; //, allzeros;
-    unsigned int tid;
-    char tdatastr[MAX_CSV_STRLEN];
-    if (appekgStatus != APPEKG_STAT_OK)
-        return;
-    //fprintf(csvFH,"CSV Output\n");
-    pthread_mutex_lock(&hblock);
-    // if output hasn't started yet, write header data
-    if (csvFH == 0)
-        writeCSVHeaders();
-    // write headers opens the files; if unsuccessful, exit
-    if (appekgStatus != APPEKG_STAT_OK) {
-        pthread_mutex_unlock(&hblock);
-        return;
-    }
-    for (tid = 0; tid < EKG_MAX_THREADS; tid++) {
-        //fprintf(csvFH,"Thread %d\n",tid);
-        // new: if no thread is registered in this slot, continue,
-        // else create and print a data record regardless of whether
-        // it is all zeroes or not
-        if (_ekgActualThreadID[tid] == 0)
-            continue;
-        tstrlen = 0;
-        // allzeros = 1;
-        // CHANGED: stop after time (first base metric)
-        // when we finalize this, we can remove the loop
-        for (i = 0; i < baseCount; i++) {
-            if (i > 0)
-                break; // Stop after first metric
-            //tstrlen += snprintf(tdatastr+tstrlen, sizeof(tdatastr)-tstrlen-1,
-            //                    ",");
-            switch (baseMetrics[i].type) {
-            case UINT8:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%u",
-                                    baseMetrics[i].v.u8val);
-                break;
-            case UINT16:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%u",
-                                    baseMetrics[i].v.u16val);
-                break;
-            case UINT32:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%u",
-                                    baseMetrics[i].v.u32val);
-                break;
-            case UINT64:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%lu",
-                                    baseMetrics[i].v.u64val);
-                break;
-            case INT8:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%d",
-                                    baseMetrics[i].v.i8val);
-                break;
-            case INT16:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%d",
-                                    baseMetrics[i].v.i16val);
-                break;
-            case INT32:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%d",
-                                    baseMetrics[i].v.i32val);
-                break;
-            case INT64:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%ld",
-                                    baseMetrics[i].v.i64val);
-                break;
-            case FLOAT:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%g",
-                                    baseMetrics[i].v.fpval);
-                break;
-            case DOUBLE:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%g",
-                                    baseMetrics[i].v.dpval);
-                break;
-            //case STRING: fprintf(csvFH,"%s",baseMetrics[i].v.strval); break;
-            default:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "unknown");
-                break;
-            }
-        }
-        //allzeros = 1;
-        tstrlen += snprintf(tdatastr + tstrlen, sizeof(tdatastr) - tstrlen - 1,
-                            ",%d", tid);
-        // Currently, heartbeat counts and time start at index 1, not 0,
-        // because it makes for easier (faster) math in begin/end heartbeat
-        for (i = 1; i < metricCount; i++) {
-            tstrlen += snprintf(tdatastr + tstrlen,
-                                sizeof(tdatastr) - tstrlen - 1, ",");
-            //if (threadMetrics[tid][i].v.dpval != 0.0)
-            //   allzeros = 0;
-            switch (threadMetrics[0][i].type) {
-            case UINT8:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%u",
-                                    threadMetrics[tid][i].v.u8val);
-                break;
-            case UINT16:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%u",
-                                    threadMetrics[tid][i].v.u16val);
-                break;
-            case UINT32:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%u",
-                                    threadMetrics[tid][i].v.u32val);
-                break;
-            case UINT64:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%lu",
-                                    threadMetrics[tid][i].v.u64val);
-                break;
-            case INT8:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%d",
-                                    threadMetrics[tid][i].v.i8val);
-                break;
-            case INT16:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%d",
-                                    threadMetrics[tid][i].v.i16val);
-                break;
-            case INT32:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%d",
-                                    threadMetrics[tid][i].v.i32val);
-                break;
-            case INT64:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%ld",
-                                    threadMetrics[tid][i].v.i64val);
-                break;
-            case FLOAT:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%.3f",
-                                    (double)threadMetrics[tid][i].v.fpval);
-                break;
-            case DOUBLE:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "%.3f",
-                                    threadMetrics[tid][i].v.dpval);
-                break;
-            //case STRING: fprintf(csvFH,"%s",threadMetrics[tid][i].v.strval);
-            //  break;
-            default:
-                tstrlen += snprintf(tdatastr + tstrlen,
-                                    sizeof(tdatastr) - tstrlen - 1, "unknown");
-                break;
-            }
-            // Zero out all heartbeat data (but not base metrics)
-            threadMetrics[tid][i].v.dpval = 0.0;
-        }
-        //if (!allzeros)
-        fprintf(csvFH, "%s\n", tdatastr);
-    }                              // end outer for
-    pthread_mutex_unlock(&hblock); // unlock after all HB data
-    fflush(csvFH);
 }
 
 /**
@@ -971,7 +668,15 @@ static void outputHeartbeatData()
     //baseMetrics[1].v.i64val = curtime.tv_usec;
     if (ekgOutputMode == DO_CSV_FILES)
         outputCSVData();
-    // TODO Other choices here
+#ifdef INCLUDE_LDMS
+    else if (ekgOutputMode == DO_LDMS_STREAMS)
+        outputLDMSStreamsData();
+#endif
+#ifdef INCLUDE_SQLITE
+    else if (ekgOutputMode == DO_SQLITE)
+        outputSQLiteData();
+#endif
+    // TODO Other choices here?
 }
 
 /**
@@ -1031,22 +736,20 @@ static void finalizeHeartbeatData(void* arg)
             }
         }
     }
-    // JEC END checking for unfinished heartbeats
+    // JEC END checking for unfinished heartbeats TODO: move to CSV source
 #endif
     outputHeartbeatData();
+    // finalize output mode
     if (ekgOutputMode == DO_CSV_FILES) {
-        fclose(csvFH);
-        csvFH = 0;
-        FILE* jfh = fopen(jsonFilename, "r+");
-        if (jfh) {
-            fseek(jfh, -3, SEEK_END);
-            struct timespec curtime;
-            clock_gettime(CLOCK_REALTIME, &curtime);
-            fprintf(jfh, ",\n\"endtime\":%u,\n\"duration\":%u\n}\n",
-                    (unsigned)curtime.tv_sec,
-                    (unsigned)(curtime.tv_sec - programStartTime.tv_sec));
-            fclose(jfh);
-        }
+        finalizeCSVOutput();
+#ifdef INCLUDE_LDMS
+    } else if (ekgOutputMode == DO_LDMS_STREAMS) {
+        finalizeLDMSOutput();
+#endif
+#ifdef INCLUDE_SQLITE
+    } else if (ekgOutputMode == DO_SQLITE) {
+        finalizeSQLiteOutput();
+#endif
     }
 }
 
@@ -1072,3 +775,4 @@ static void* performSampling(void* arg)
     pthread_cleanup_pop(1);
     return 0;
 }
+

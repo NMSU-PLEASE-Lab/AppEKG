@@ -2,35 +2,53 @@
 # Build file for AppEKG
 #
 
+# options
+DO_USE_OPENMP = OFF
+DO_USE_SQLITE3 = ON
+DO_USE_LDMS_STREAMS = OFF
+
 # OpenMP support (ON/OFF)
-DO_USE_OPENMP = ON
 ifeq ($(DO_USE_OPENMP),ON)
-OMPFLAGS = -DEKG_USE_OPENMP -fopenmp
+OMPCFLAGS = -DEKG_USE_OPENMP -fopenmp
+OMPLFLAGS = 
 else 
-OMPFLAGS = 
+OMPCFLAGS = 
+OMPLFLAGS = 
 endif
 
 # LDMS streams support
-DO_USE_LDMS_STREAMS = OFF
 LDMSDIR = /project/hpcjobquality/tools/INSTALL/OVIS
 ifeq ($(DO_USE_LDMS_STREAMS),ON)
-LDMSFLAGS = -DUSE_LDMS_STREAMS -I${LDMSDIR}/include
+LDMSCFLAGS = -DINCLUDE_LDMS -I${LDMSDIR}/include
+LDMSLFLAGS = 
 else 
+LDMSFLAGS = 
 LDMSFLAGS = 
 endif
 
+# SQLite3 streams support
+SQLITE_DIR = /usr/local/sqlite3
+ifeq ($(DO_USE_SQLITE3),ON)
+SQLCFLAGS = -DINCLUDE_SQLITE -DSQLITE_DBNAME=\"appekg-test.db3\" -I${SQLITE_DIR}/include
+else 
+SQLCFLAGS = 
+endif
+
+CC = gcc
+AR = ar
 # -DDEBUG is allowable
-CFLAGS = ${OMPFLAGS} ${LDMSFLAGS}
+CFLAGS = -Wall ${OMPCFLAGS} ${LDMSCFLAGS} ${SQLCFLAGS}
+LDFLAGS = ${OMPLFLAGS} ${LDMSLFLAGS} ${SQLLFLAGS}
 
 .phony: all doc clean
 
 all: libappekg.a 
 
 libappekg.a: appekg.o
-	ar crs libappekg.a appekg.o
+	$(AR) crs libappekg.a appekg.o
 
-appekg.o: appekg.c appekg.h
-	gcc -Wall -c $(CFLAGS) appekg.c
+appekg.o: appekg.c appekg.h csvoutput.c ldmsoutput.c sqliteoutput.c
+	$(CC) $(CFLAGS) -c appekg.c
 
 clean:
 	rm -rf *.o libappekg.a

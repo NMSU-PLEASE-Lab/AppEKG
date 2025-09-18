@@ -4,7 +4,7 @@ APPEKGDIR = ..
 # on Mac, -Xclang may be needed
 CC = gcc
 CFLAGS = -I${APPEKGDIR} -Wall -fopenmp
-LDFLAGS = -L${APPEKGDIR} -lappekg -lpthread 
+LDFLAGS = -L${APPEKGDIR} -lappekg -lpthread -lsqlite3
 
 all: hello binary binlinear binlinthread evensum dynamichb threadtest
 
