@@ -27,3 +27,16 @@ If there are files to ignore, use "-x pattern" to ignore files.
 Need to check miniAMR patch to ensure the ref version has the correct
 heartbeats and rate factors.
 
+### MiniAMR
+
+MiniAMR at https://github.com/Mantevo/miniAMR 
+
+The latest version (as of Sep 2025) works. In root MiniAMR directory, do:
+
+patch --dry-run --verbose -p1 < /home/.../AppEKG/patchfiles/miniAMR-commit-5bf66c0-AppEKG-patch.txt
+
+If all ok then remove "--dry-run"
+
+You will need to edit the Makefiles in each of the openmp and ref directories to point to your installation of AppEKG. Make sure that AppEKG is compiled with OpenMP support. If AppEKG is compiled with SQLite3 support, you will need to add "-lsqlite3" to the APPEKG library flags.
+
+
