@@ -107,7 +107,7 @@ static void initializeCSVOutput()
     sprintf(jsonFilename, "%s/%s-%d.json", pathFormat, FILENAME_PREFIX,
             getpid());
     mf = fopen(jsonFilename, "w");
-    fputs(metadataToJSON(), mf);
+    fputs(metadataToJSON(), mf); // TODO: Too early here, missing HB names
     fclose(mf);
 }
 
