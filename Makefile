@@ -1,37 +1,47 @@
 #
 # Build file for AppEKG
 #
+# TODO: the linking flags (...LFLAGS) are not used to build the
+#       AppEKG library, since it is packaged as a static library.
+#       But some options, like SQLite, will need linking flags
+#       when the instrumented application is built. The ones here
+#       can serve as examples. Perhaps we should build a DLL?
+#
 
-# options
-DO_USE_OPENMP = OFF
-DO_USE_SQLITE3 = ON
+# Options
+DO_USE_OPENMP = ON
+DO_USE_SQLITE3 = OFF
 DO_USE_LDMS_STREAMS = OFF
 
-# OpenMP support (ON/OFF)
+# OpenMP support (ON/OFF); this is for how thread IDs are obtained
+# TODO: make this dynamic? OpenMP _only_ works for OpenMP programs,
+# and pthread IDs only work for pthreads. I wish both could work.
 ifeq ($(DO_USE_OPENMP),ON)
 OMPCFLAGS = -DEKG_USE_OPENMP -fopenmp
-OMPLFLAGS = 
+OMPLFLAGS = -lopenmp
 else 
 OMPCFLAGS = 
 OMPLFLAGS = 
 endif
 
-# LDMS streams support
+# LDMS streams data output support
 LDMSDIR = /project/hpcjobquality/tools/INSTALL/OVIS
 ifeq ($(DO_USE_LDMS_STREAMS),ON)
 LDMSCFLAGS = -DINCLUDE_LDMS -I${LDMSDIR}/include
-LDMSLFLAGS = 
+LDMSLFLAGS = -L${LDMSDIR}/lib -lldms
 else 
-LDMSFLAGS = 
-LDMSFLAGS = 
+LDMSCFLAGS = 
+LDMSLFLAGS = 
 endif
 
-# SQLite3 streams support
+# SQLite3 data output support
 SQLITE_DIR = /usr/local/sqlite3
 ifeq ($(DO_USE_SQLITE3),ON)
 SQLCFLAGS = -DINCLUDE_SQLITE -DSQLITE_DBNAME=\"appekg-test.db3\" -I${SQLITE_DIR}/include
+SQLLFLAGS = -L${SQLITE_DIR}/lib -lsqlite3
 else 
 SQLCFLAGS = 
+SQLLFLAGS = 
 endif
 
 CC = gcc
