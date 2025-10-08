@@ -63,6 +63,6 @@ appekg.o: appekg.c appekg.h csvoutput.c ldmsoutput.c sqliteoutput.c
 clean:
 	rm -rf *.o libappekg.a
 
-doc: Doxyfile appekg.c appekg.h
+doc: Doxyfile appekg.c appekg.h csvoutput.c ldmsoutput.c sqliteoutput.c
 	doxygen Doxyfile
 

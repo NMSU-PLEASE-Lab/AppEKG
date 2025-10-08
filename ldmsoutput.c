@@ -1,3 +1,11 @@
+/**
+* \file ldmsoutput.c
+* \brief LDMS Streams Output Implementation
+* 
+* Functions in this file support output to an LDMS stream. This is currently
+* NOT implemented; the prototype code that used to exist is commented out.
+*
+**/
 
 //
 // Skip entire file if not including LDMS support

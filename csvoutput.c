@@ -1,9 +1,14 @@
+/**
+* \file csvoutput.c
+* \brief CSV Output Implementation
+* 
+* Functions in this file support CSV (comma-separated-values) output for
+* the heartbeat data, and a JSON file for metadata.
+*
+**/
 
-//
 // CSV support is always included, so no conditional compilation directives
 // are in this file
-//
-
 
 #define MAX_CSV_STRLEN 1024
 static char* metadataToJSON();

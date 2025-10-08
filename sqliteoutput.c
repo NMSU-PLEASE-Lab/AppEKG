@@ -1,3 +1,12 @@
+/**
+* \file sqliteoutput.c
+* \brief SQLite3 Output Implementation
+* 
+* Functions in this file support output to an SQLite3 database. The
+* database file will be created if it does not exist. The environment
+* variable APPEKG_SQLITE_DBNAME can specify a database file name.
+*
+**/
 
 //
 // Skip entire file if not including SQLite support
