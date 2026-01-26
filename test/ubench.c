@@ -51,7 +51,7 @@ int main(int argc, char *argv[])
    EKG_NAME_HEARTBEAT(3, "Sum");
    srandom(randomSeed);
    data = (double**) malloc(sizeof(double*)*numLists);
-   #pragma omp parallel for private(i,j)
+   //#pragma omp parallel for private(j)
    for (i=0; i < numLists; i++) {
       EKG_BEGIN_HEARTBEAT(1,HB1_RATE);
       data[i] = (double*) malloc (sizeof(double)*listSize);
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
    }
    fprintf(stdout,"modifying...\n");
    for (k=0; k < iterations; k++) {
-      #pragma omp parallel for private(i,j)
+      //#pragma omp parallel for private(j)
       for (i=0; i < numLists; i++) {
          EKG_BEGIN_HEARTBEAT(2,HB2_RATE);
          for (j=1; j < listSize; j++) {
@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
    }
    fprintf(stdout,"summing...\n");
    sum = 0;
-   #pragma omp parallel for private(i,j)
+   //#pragma omp parallel for private(j) shared(sum)
    for (i=0; i < numLists; i++) {
       EKG_BEGIN_HEARTBEAT(3,HB3_RATE);
       for (j=0; j < listSize; j++)

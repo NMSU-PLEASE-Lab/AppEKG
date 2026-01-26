@@ -34,6 +34,19 @@ ubench: ubench.c
 	$(CC) $(CFLAGS) -DAPPEKG_DISABLE -o $@-clean $< 
 	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
 
+utest:
+	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
+	time -f "appekg,%e,%U,%S,%e" ./ubench
+	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
+	time -f "appekg,%e,%U,%S,%e" ./ubench
+	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
+	time -f "appekg,%e,%U,%S,%e" ./ubench
+	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
+	time -f "appekg,%e,%U,%S,%e" ./ubench
+	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
+	time -f "appekg,%e,%U,%S,%e" ./ubench
+
+
 clean:
 	rm -f *.o hello binary binlinear binlinthread evensum dynamichb threadtest ubench
 
