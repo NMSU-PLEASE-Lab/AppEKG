@@ -51,17 +51,19 @@ int main(int argc, char *argv[])
    EKG_NAME_HEARTBEAT(3, "Sum");
    srandom(randomSeed);
    data = (double**) malloc(sizeof(double*)*numLists);
-   //#pragma omp parallel for private(j)
+   // comment out parallel pragma if using random()!
+   #pragma omp parallel for private(j)
    for (i=0; i < numLists; i++) {
       EKG_BEGIN_HEARTBEAT(1,HB1_RATE);
       data[i] = (double*) malloc (sizeof(double)*listSize);
       for (j=0; j < listSize; j++)
-         data[i][j] = random();
+         //data[i][j] = random(); // NOT parallelizable! 
+         data[i][j] = ((double)i*j)/randomSeed; // YES parallelizable!
       EKG_END_HEARTBEAT(1);
    }
    fprintf(stdout,"modifying...\n");
    for (k=0; k < iterations; k++) {
-      //#pragma omp parallel for private(j)
+      #pragma omp parallel for private(j)
       for (i=0; i < numLists; i++) {
          EKG_BEGIN_HEARTBEAT(2,HB2_RATE);
          for (j=1; j < listSize; j++) {
@@ -75,7 +77,7 @@ int main(int argc, char *argv[])
    }
    fprintf(stdout,"summing...\n");
    sum = 0;
-   //#pragma omp parallel for private(j) shared(sum)
+   #pragma omp parallel for private(j) reduction(+:sum)
    for (i=0; i < numLists; i++) {
       EKG_BEGIN_HEARTBEAT(3,HB3_RATE);
       for (j=0; j < listSize; j++)
@@ -84,6 +86,8 @@ int main(int argc, char *argv[])
    }
    EKG_FINALIZE();
    fprintf(stdout,"final sum: %g\n", sum);
+   // for SERIAL random init w/ seed == 42, correct sum is 1.28382e+73
+   // for parallel formula init w/ seed == 42, correct sum is 3.69493e+68
    return 0;
 }
 
