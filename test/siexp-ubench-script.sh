@@ -30,7 +30,7 @@ EXEC_APPEKG100=/fs1/home/joncook/ws/AppEKG/test/ubench-hb100
 EXEC_APPEKG1000=/fs1/home/joncook/ws/AppEKG/test/ubench-hb1000
 
 # not used for now
-EXEC_ARGS="-l 1024"
+EXEC_ARGS="-i 1000"
 
 # make subdirs for appekg data for each sampling interval, so the data is
 # kept separate; we can verify our sampling intervals by looking at the data
@@ -40,77 +40,77 @@ mkdir -p SI10
 mkdir -p SI60
 
 # 1st Run
-/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN
+/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=1
 export APPEKG_OUTPUT_PATH=SI1
-/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=5
 export APPEKG_OUTPUT_PATH=SI5
-/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=10
 export APPEKG_OUTPUT_PATH=SI10
-/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=60
 export APPEKG_OUTPUT_PATH=SI60
-/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 
 # 2nd Run
-/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN
+/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=1
 export APPEKG_OUTPUT_PATH=SI1
-/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=5
 export APPEKG_OUTPUT_PATH=SI5
-/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=10
 export APPEKG_OUTPUT_PATH=SI10
-/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=60
 export APPEKG_OUTPUT_PATH=SI60
-/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 
 # 3rd Run
-/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN
+/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=1
 export APPEKG_OUTPUT_PATH=SI1
-/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=5
 export APPEKG_OUTPUT_PATH=SI5
-/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=10
 export APPEKG_OUTPUT_PATH=SI10
-/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=60
 export APPEKG_OUTPUT_PATH=SI60
-/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 
 # 4th Run
-/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN
+/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=1
 export APPEKG_OUTPUT_PATH=SI1
-/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=5
 export APPEKG_OUTPUT_PATH=SI5
-/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=10
 export APPEKG_OUTPUT_PATH=SI10
-/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=60
 export APPEKG_OUTPUT_PATH=SI60
-/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 
 # 5th Run
-/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN
+/usr/bin/time -f 'time-clean,%U,%S,%e' srun $EXEC_CLEAN $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=1
 export APPEKG_OUTPUT_PATH=SI1
-/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si1,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=5
 export APPEKG_OUTPUT_PATH=SI5
-/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si5,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=10
 export APPEKG_OUTPUT_PATH=SI10
-/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si10,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 export APPEKG_SAMPLING_INTERVAL=60
 export APPEKG_OUTPUT_PATH=SI60
-/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10
+/usr/bin/time -f 'time-appekg-si60,%U,%S,%e' srun $EXEC_APPEKG10 $EXEC_ARGS
 
