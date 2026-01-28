@@ -32,19 +32,17 @@ threadtest: threadtest.c
 
 ubench: ubench.c
 	$(CC) $(CFLAGS) -DAPPEKG_DISABLE -o $@-clean $< 
-	$(CC) $(CFLAGS) -o $@ $< ${LDFLAGS}
+	$(CC) $(CFLAGS) -o $@-hb1 $< ${LDFLAGS}
+	$(CC) $(CFLAGS) -DHBRATE=10 -o $@-hb10 $< ${LDFLAGS}
+	$(CC) $(CFLAGS) -DHBRATE=100 -o $@-hb100 $< ${LDFLAGS}
+	$(CC) $(CFLAGS) -DHBRATE=1000 -o $@-hb1000 $< ${LDFLAGS}
 
 utest:
-	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
-	time -f "appekg,%e,%U,%S,%e" ./ubench
-	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
-	time -f "appekg,%e,%U,%S,%e" ./ubench
-	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
-	time -f "appekg,%e,%U,%S,%e" ./ubench
-	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
-	time -f "appekg,%e,%U,%S,%e" ./ubench
-	time -f "clean,%e,%U,%S,%e" ./ubench-clean 
-	time -f "appekg,%e,%U,%S,%e" ./ubench
+	time -f "clean,%U,%S,%e" ./ubench-clean 
+	time -f "appekg1,%U,%S,%e" ./ubench-hb1
+	time -f "appekg10,%U,%S,%e" ./ubench-hb10
+	time -f "appekg100,%U,%S,%e" ./ubench-hb100
+	time -f "appekg1000,%U,%S,%e" ./ubench-hb1000
 
 
 clean:

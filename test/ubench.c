@@ -5,9 +5,9 @@
 #include <omp.h>
 #include <appekg.h>
 
-#define HB1_RATE 1
-#define HB2_RATE 1
-#define HB3_RATE 1
+#ifndef HBRATE
+ #define HBRATE 1
+#endif
 
 int numLists;
 int listSize;
@@ -17,7 +17,7 @@ double** data=0;
 int main(int argc, char *argv[])
 {
    int numLists = (512*1024);
-   int listSize = 256;
+   int listSize = 512;
    int iterations = 50;
    int randomSeed = 42;
    double sum=0;
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
    // comment out parallel pragma if using random()!
    #pragma omp parallel for private(j)
    for (i=0; i < numLists; i++) {
-      EKG_BEGIN_HEARTBEAT(1,HB1_RATE);
+      EKG_BEGIN_HEARTBEAT(1,HBRATE);
       data[i] = (double*) malloc (sizeof(double)*listSize);
       for (j=0; j < listSize; j++)
          //data[i][j] = random(); // NOT parallelizable! 
@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
    for (k=0; k < iterations; k++) {
       #pragma omp parallel for private(j)
       for (i=0; i < numLists; i++) {
-         EKG_BEGIN_HEARTBEAT(2,HB2_RATE);
+         EKG_BEGIN_HEARTBEAT(2,HBRATE);
          for (j=1; j < listSize; j++) {
             if ((i%2)==0)
                data[i][j] += data[i][j-1];
@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
    sum = 0;
    #pragma omp parallel for private(j) reduction(+:sum)
    for (i=0; i < numLists; i++) {
-      EKG_BEGIN_HEARTBEAT(3,HB3_RATE);
+      EKG_BEGIN_HEARTBEAT(3,HBRATE);
       for (j=0; j < listSize; j++)
          sum += data[i][j];
       EKG_END_HEARTBEAT(3);
