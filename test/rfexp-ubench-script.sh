@@ -13,7 +13,7 @@
 #SBATCH --nodes=1          # number of nodes to use to restrict tasks to
 #SBATCH --ntasks=1         # number of processes (MPI ranks) to run
 #SBATCH --cpus-per-task=32 # the number of threads allocated to each process
-#SBATCH --mem-per-cpu=20M  # memory per CPU core (thread)
+#SBATCH --mem-per-cpu=100M  # memory per CPU core (thread)
 #SBATCH --partition=normal # the partitions to run in (comma seperated)
 #SBATCH --time=0-08:00:00  # max time for analysis (day-hour:min:sec)
 #SBATCH --mail-user joncook@nmsu.edu  # your email address
@@ -28,6 +28,9 @@ EXEC_APPEKG1=/fs1/home/joncook/ws/AppEKG/test/ubench-hb1
 EXEC_APPEKG10=/fs1/home/joncook/ws/AppEKG/test/ubench-hb10
 EXEC_APPEKG100=/fs1/home/joncook/ws/AppEKG/test/ubench-hb100
 EXEC_APPEKG1000=/fs1/home/joncook/ws/AppEKG/test/ubench-hb1000
+
+# not used for now
+EXEC_ARGS="-l 1024"
 
 # sampling (and file output) interval, seconds
 export APPEKG_SAMPLING_INTERVAL=1
