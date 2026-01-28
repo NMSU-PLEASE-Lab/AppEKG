@@ -194,9 +194,9 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
     // application instrumentation macros, and so their names
     // must be namespaced and not conflict with application names
     _ekgHBEndFlag = (unsigned int*)calloc(sizeof(unsigned int),
-                                          EKG_MAX_HEARTBEATS * (EKG_MAX_THREADS+1));
+                                          (EKG_MAX_HEARTBEATS+1) * (EKG_MAX_THREADS+1));
     _ekgHBCount = (unsigned int*)calloc(sizeof(unsigned int),
-                                        EKG_MAX_HEARTBEATS * (EKG_MAX_THREADS+1));
+                                        (EKG_MAX_HEARTBEATS+1) * (EKG_MAX_THREADS+1));
     _ekgActualThreadID =
           (unsigned int*)calloc(sizeof(unsigned int), EKG_MAX_THREADS+1);
     // TODO: make sure that the casting below is safe; I think it is

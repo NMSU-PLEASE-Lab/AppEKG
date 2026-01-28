@@ -84,7 +84,7 @@ extern "C" {
 #define EKG_BEGIN_HEARTBEAT(id, rateFactor)
 #define EKG_END_HEARTBEAT(id)
 #define EKG_PULSE_HEARTBEAT(id, rateFactor)
-#define EKG_INITIALIZE(numHeartbeats, samplingInterval, appid, jobid, rank,    \
+#define EKG_INITIALIZE(numHeartbeats, samplingInterval, appid, jobid, rank,\
                        silent)
 #define EKG_FINALIZE()
 #define EKG_DISABLE()
@@ -325,12 +325,15 @@ char* ekgNameOfHeartbeat(unsigned int id);
 // in-library sources needs to define EKG_EXTERN as empty
 #ifndef EKG_EXTERN
 #define EKG_EXTERN extern
+#define EKG_PINIT 
+#else
+#define EKG_PINIT =0
 #endif
-EKG_EXTERN unsigned int* _ekgHBEndFlag;
-EKG_EXTERN unsigned int* _ekgHBCount;
+EKG_EXTERN unsigned int* _ekgHBEndFlag EKG_PINIT;
+EKG_EXTERN unsigned int* _ekgHBCount EKG_PINIT;
 // track the actual thread id that is hashed to this location, other
 // threads that hash here will be ignored
-EKG_EXTERN unsigned int* _ekgActualThreadID;
+EKG_EXTERN unsigned int* _ekgActualThreadID EKG_PINIT;
 EKG_EXTERN unsigned long (*_ekgThreadId)(void);
 
 #endif // APPEKG_DISABLE
