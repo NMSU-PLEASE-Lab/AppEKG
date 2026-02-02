@@ -107,7 +107,7 @@ static struct Metric {
         //char    strval[64];  // leave out until we need it, too much space
     } v;
 } baseMetrics[MAX_BASE_METRICS],
-      threadMetrics[EKG_MAX_THREADS][EKG_MAX_HEARTBEATS * 2 + 2];
+  threadMetrics[EKG_MAX_THREADS][EKG_MAX_HEARTBEATS * 2 + 2];
 
 static int baseCount = 0;   /* number of base metrics */
 static int metricCount = 0; /* number of metrics */
@@ -122,7 +122,6 @@ static pthread_t tid = 0;
 
 static unsigned long samplingInterval = 1; /* in seconds */
 static int doSampling = 0;
-static FILE* csvFH = 0;
 static void* performSampling(void* arg);
 static int allowStderr = 0;
 static pthread_mutex_t hblock;
@@ -163,11 +162,11 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
     int i;
     char* p;
     if (appekgStatus == APPEKG_STAT_OK)
-        return 0; // other thread already did the init?
+        return 0; // other thread already did the init before we locked
     pthread_mutex_lock(&hblock);
     if (appekgStatus == APPEKG_STAT_OK) {
         pthread_mutex_unlock(&hblock);
-        return 0; // other thread already did the init?
+        return 0; // other thread already did the init after we locked
     }
     allowStderr = !silent;
     applicationID = appid;
@@ -292,7 +291,9 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
     char* es = getenv("APPEKG_OUTPUT_MODE");
     if (!es || !strcmp("CSV",es)) {
         ekgOutputMode = DO_CSV_FILES;
-        initializeCSVOutput();
+        // too early, let CSV code do it on demand
+        // -- missing HB names for JSON header at this point
+        // initializeCSVOutput();
 #ifdef INCLUDE_LDMS
     } else if (!strcmp("LDMS",es)) {
         ekgOutputMode = DO_LDMS_STREAMS;
@@ -301,7 +302,7 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
 #ifdef INCLUDE_SQLITE
     } else if (!strcmp("SQLITE",es)) {
         ekgOutputMode = DO_SQLITE;
-        initializeSQLiteOutput();
+        initializeSQLiteOutput(); 
 #endif
     }
     // start up sampling thread
@@ -320,6 +321,7 @@ static void finalizeHeartbeatData(void* v);
 **/
 void ekgFinalize(void)
 {
+    int i;
     /* if never initialized, don't clean up */
     if (appekgStatus != APPEKG_STAT_OK)
         return;
@@ -339,6 +341,17 @@ void ekgFinalize(void)
     if (_ekgHBCount) {
         free(_ekgHBCount);
         _ekgHBCount = 0;
+    }
+    if (_ekgActualThreadID) {
+        free(_ekgActualThreadID);
+        _ekgActualThreadID = 0;
+    }
+    // metric[0][0] is threadID, then two (count,duration) for each hearbeat
+    for (i=0; i <= numHeartbeats * 2; i++) {
+        if (threadMetrics[0][i].name) {
+            free(threadMetrics[0][i].name);
+            threadMetrics[0][i].name = 0;
+        }
     }
     return;
 }
@@ -596,7 +609,7 @@ static char* metadataToJSON()
                                 sizeof(tdatastr) - tstrlen - 1, "\"%s\":%g",
                                 baseMetrics[i].name, baseMetrics[i].v.dpval);
             break;
-        //case STRING: fprintf(csvFH,"%s",baseMetrics[i].v.strval); break;
+        //case STRING: fprintf(TODO,"%s",baseMetrics[i].v.strval); break;
         default:
             tstrlen +=
                   snprintf(tdatastr + tstrlen, sizeof(tdatastr) - tstrlen - 1,
@@ -710,7 +723,7 @@ static void finalizeHeartbeatData(void* arg)
           ((1000000 * endTime.tv_sec) + (endTime.tv_nsec / 1000));
 
     for (tid = 0; tid < EKG_MAX_THREADS; tid++) {
-        //fprintf(csvFH,"Thread %d\n",tid);
+        //fprintf(stderr,"Thread %d\n",tid);
         // new: if no thread is registered in this slot, continue,
         // else create and print a data record regardless of whether
         // it is all zeroes or not

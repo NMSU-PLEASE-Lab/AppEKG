@@ -12,6 +12,7 @@
 
 #define MAX_CSV_STRLEN 1024
 static char* metadataToJSON();
+static FILE* csvFH = 0;
 
 static void finalizeCSVOutput()
 {
