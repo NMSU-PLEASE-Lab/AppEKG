@@ -47,7 +47,7 @@ endif
 CC = gcc
 AR = ar
 # -DDEBUG is allowable
-CFLAGS = -Wall ${OMPCFLAGS} ${LDMSCFLAGS} ${SQLCFLAGS}
+CFLAGS = -g -Wall ${OMPCFLAGS} ${LDMSCFLAGS} ${SQLCFLAGS}
 LDFLAGS = ${OMPLFLAGS} ${LDMSLFLAGS} ${SQLLFLAGS}
 
 .phony: all doc clean

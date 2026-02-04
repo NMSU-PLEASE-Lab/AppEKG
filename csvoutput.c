@@ -16,11 +16,15 @@ static FILE* csvFH = 0;
 
 static void finalizeCSVOutput()
 {
-    fclose(csvFH);
-    csvFH = 0;
+    if (appekgStatus != APPEKG_STAT_OK)
+        return;
+    if (csvFH) {
+        fclose(csvFH);
+        csvFH = 0;
+    }
     FILE* jfh = fopen(jsonFilename, "r+");
     if (jfh) {
-        fseek(jfh, -3, SEEK_END);
+        fseek(jfh, -3, SEEK_END); // "\n}\n" at end of file
         struct timespec curtime;
         clock_gettime(CLOCK_REALTIME, &curtime);
         fprintf(jfh, ",\n\"endtime\":%u,\n\"duration\":%u\n}\n",
