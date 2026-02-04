@@ -118,7 +118,7 @@ static int numHeartbeats = 0; /* number of hbeats */
 static char** hbNames;        // heartbeat names (used indices start at 1)
 
 // thread id for the appekg sampling thread
-static pthread_t tid = 0;
+static pthread_t samplingThreadId = 0;
 
 static unsigned long samplingInterval = 1; /* in seconds */
 static int doSampling = 0;
@@ -308,7 +308,7 @@ int ekgInitialize(unsigned int pNumHeartbeats, float pSamplingInterval,
     // start up sampling thread
     doSampling = 1;
     pthread_mutex_unlock(&hblock);
-    pthread_create(&tid, 0, performSampling, 0);
+    pthread_create(&samplingThreadId, 0, performSampling, 0);
     return 0;
 }
 
@@ -321,7 +321,7 @@ static void finalizeHeartbeatData(void* v);
 **/
 void ekgFinalize(void)
 {
-    int i;
+    //int i;
     /* if never initialized, don't clean up */
     if (appekgStatus != APPEKG_STAT_OK)
         return;
@@ -332,7 +332,14 @@ void ekgFinalize(void)
     }
     doSampling = 0;
     pthread_mutex_unlock(&hblock);
-    finalizeHeartbeatData((void*)0);
+    // calling finalize doesn't work here because the sampling
+    // thread calls it upon thread exit; so we're trying here
+    // to just cancel the sampling thread
+    //finalizeHeartbeatData((void*)0);
+    pthread_cancel(samplingThreadId);
+    // but finalize will now happen at some later point, so we 
+    // can't just delete everything here.
+    /***
     appekgStatus = APPEKG_STAT_DISABLED;
     if (_ekgHBEndFlag) {
         free(_ekgHBEndFlag);
@@ -353,6 +360,7 @@ void ekgFinalize(void)
             threadMetrics[0][i].name = 0;
         }
     }
+    ***/
     return;
 }
 
@@ -764,6 +772,7 @@ static void finalizeHeartbeatData(void* arg)
         finalizeSQLiteOutput();
 #endif
     }
+    appekgStatus = APPEKG_STAT_DISABLED;
 }
 
 /**

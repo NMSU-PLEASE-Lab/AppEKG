@@ -96,8 +96,9 @@ extern "C" {
 #else
 
 // Operating Parameters
-#define EKG_MAX_THREADS 1
+#define EKG_MAX_THREADS 37
 #define EKG_MAX_HEARTBEATS 20
+
 // comment out the below to use pthread functions for 
 // determining thread IDs, uncomment to use OpenMP functions
 //#define EKG_USE_OPENMP (now in Makefile, do not uncomment this)
